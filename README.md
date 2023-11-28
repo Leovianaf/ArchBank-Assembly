@@ -10,8 +10,8 @@
 Projeto realizado por grupo de 4 alunos na cadeira de Arquitetura e Organização de Computadores na UFRPE, consiste em um sitema bancário feito na linguagem Assembly MIPS.
 O objetivo deste projeto é implementar um sistema de cadastro de clientes e transações para uma agência bancária.
 
-### Ideia do programa:
-* Este sistema de cadastro deve ser operado através de um terminal (prompt/shell) que funciona como um interpretador de comandos de texto, ou seja, o sistema vai ficar constantemente checando por entradas de texto (string) e interpretando o que for recebido a partir de uma lista de comandos que o sistema deve ser capaz de executar.
+### Objetivo do programa:
+* Este sistema de cadastro será operado através de um terminal (prompt/shell) que funciona como um interpretador de comandos de texto, ou seja, o sistema ficará constantemente checando entradas de texto (string) e interpretando o que for recebido a partir de uma lista de comandos que o sistema será capaz de executar.
 
 ## Requisitos do Projeto:
 * O sistema deve ter a capacidade de gerenciar até 50 clientes ao mesmo tempo.
