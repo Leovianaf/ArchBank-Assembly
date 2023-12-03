@@ -1,4 +1,4 @@
-# | Projeto ArchBank-Assembly|
+# | Projeto ArchBank-Assembly |
 
 ## Informações:
 * Beatriz Pereira da Silva - beatrizbusinessx@gmail.com
