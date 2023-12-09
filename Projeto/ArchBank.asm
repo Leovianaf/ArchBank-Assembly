@@ -53,6 +53,13 @@
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "Cliente cadastrado com sucesso. Número da conta "
+   	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
+   	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
+   	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: \n"
+   	
+   	cpf: .space 12		# Espaco na memoria para armazenar o cpf lido no input
+	conta: .space 9 	# Espaco na memoria para armazenar o numero da conta lido no input
+	nome: .space 29		# Espaco na memoria para armazenar o nome lido no input
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
 	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
@@ -66,7 +73,7 @@
     	syscall
 .end_macro
 
-.macro print_bl			# Macro para imprimir uma string, passada como parametro
+.macro print_bl			# Macro para imprimir uma quebra de linha
     	addi $v0, $0, 11	# Codigo do syscall para imprimir um caractere
     	addi $a0, $0, '\n'	# Carrega \n em $a0 para uma quebra de linha
     	syscall
@@ -81,14 +88,37 @@
     		la $t1, cliente0   # $t1 = endereco do cliente0
 
     		# Exemplo de uso:
-    		la $a0, "12345678901"
-    		la $a1, "987654"
-    		la $a2, "Joao Silva"
-    		jal cadastrarCliente
-
-    		la $a0, "98765432109"
-    		la $a1, "123456"
-    		la $a2, "Maria Souza"
+    		li $v0, 4		# Codigo do syscall para imprimir uma string
+		la $a0, CLIENTE_CPF_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
+		syscall
+	
+    		li $v0, 8	# Codigo do syscall para ler uma string como input
+    		la $a0, cpf	# Salva o valor lido no espaco cpf reservado na memoria
+    		li $a1, 12	# Tamanho de bytes maximo a ser lido
+    		syscall
+    		
+    		print_bl()	# Quebra uma linha
+    		
+    		li $v0, 4		# Codigo do syscall para imprimir uma string
+		la $a0, CLIENTE_CONTA_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
+		syscall
+	
+    		li $v0, 8	# Codigo do syscall para ler uma string como input
+    		la $a0, conta	# Salva o valor lido no espaco cpf reservado na memoria
+    		li $a1, 7	# Tamanho de bytes maximo a ser lido
+    		syscall
+    		
+    		print_bl()	# Quebra uma linha
+    		
+    		li $v0, 4		# Codigo do syscall para imprimir uma string
+		la $a0, CLIENTE_NOME_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
+		syscall
+	
+    		li $v0, 8	# Codigo do syscall para ler uma string como input
+    		la $a0, nome	# Salva o valor lido no espaco cpf reservado na memoria
+    		li $a1, 29	# Tamanho de bytes maximo a ser lido
+    		syscall
+    		
     		jal cadastrarCliente
 
     		j exit	# Fim do programa  
@@ -108,17 +138,21 @@
 
     		# Copiar informações para a estrutura do cliente
     		sw $a0, 0($t4)      # clientes[numClientes].cpf = cpf / 0-11 devido ao cpf ter 12 digitos (incluindo '\0')
-    		sw $a1, 12($t4)     # clientes[numClientes].conta = conta / 12-20 devido a conta ter 9 digitos (incluindo '\0')
+    		sw $a1, 12($t4)     # clientes[numClientes].conta = conta / 12-17 os numeros da conta digitados
+    		li $t9, '-'         # Carrega em $t9 o caractere '-'
+   		sb $t9, 18($t4)     # clientes[numClientes].conta[7] = '-'
+    		la $a0, conta       # Passa o endereco da conta para a funcao calcularDigitoVerificador
+    		jal calcularDigitoVerificador
+    		sb $v0, 19($t4)     # clientes[numClientes].conta[8] = digito verificador calculado (sobrando o byte 20 para o '\0')
     		sw $a2, 21($t4)     # clientes[numClientes].nome = nome / 21-49 devido ao tamanho maximo para um nome ter 29 bytes (incluindo '\0')
 
     		# Mensagem de sucesso  
     		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
 
-    		print_str(12($t4))  # $a0 = endereco de clientes[numClientes].conta
+    		# print_str(12($t4))  # $a0 = endereco de clientes[numClientes].conta
 
     		# Incrementar numClientes
-    		addi $t0, $t0, 1
-    		sw $t0, 0($t1)      # numClientes = numClientes + 1
+    		addi $t0, $t0, 1	# numClientes = numClientes + 1
 
     		j fimFuncao
 
@@ -129,16 +163,11 @@
     		jr $ra              # Retornar da funcao
 
 	calcularDigitoVerificador:
-    		# Argumento: $t3 = endereco de conta
+    		# Argumento: $a0 = endereco de conta
     		# Retorno: $v0 = digito verificador
 
     		# Pesos utilizados no calculo do digito verificador
     		li $t0, 2
-    		li $t1, 3
-    		li $t2, 4
-    		li $t4, 5
-    		li $t5, 6
-    		li $t6, 7
 
     		# Variavel para armazenar a soma ponderada dos dígitos
     		li $t7, 0
@@ -148,7 +177,7 @@
     		
     		calcularLoop:
         		# Converte o caractere numerico para o valor inteiro correspondente
-        		lb $t9, 0($t3)
+        		lb $t9, 0($a0)
         		sub $t9, $t9, 48
 
         		# Realiza a multiplicacao do digito pelo peso correspondente
@@ -157,29 +186,31 @@
         		add $t7, $t7, $t9
 
         		# Proximo digito e peso
-        		addi $t3, $t3, 1
+        		addi $a0, $a0, 1
         		addi $t0, $t0, 1
+        		addi $t8, $t8, 1
 
         		# Condicao de parada
-       			bne $t8, 5, calcularLoop
+       		 	bne $t8, 5, calcularLoop
         		nop
 
     		# Calcula o resto da divisao da soma pelo numero 11
-    		li $t0, 11
-    		rem $t7, $t7, $t0
+    		li $t0, 11       # Carrega 11 em $t0 para fazer a divisao
+    		rem $t7, $t7, $t0 # Divide $t7 por $t0 e guarda o resto da divisao em $t7
 
     		# Retorna 'X' se o resto for 10, caso contrario, retorna o proprio resto convertido para caractere
     		li $t0, 10
-    		beq $t7, $t0, resto10
+   	 	beq $t7, $t0, resto10
     		addi $t7, $t7, 48
+    		
     		j fimFuncaoCalculo
 
 	resto10:
-    		li $t7, 88
+    		li $t7, 88       # 88 = numero do caractere 'X'
 
 	fimFuncaoCalculo:
     		move $v0, $t7
-    		jr $ra              # Retornar da funcao
+    		jr $ra           # Retornar da funcao
 
 	strcpy:
  		# Argumentos $a0 = source, $a1 = destination, retorno em $v0
