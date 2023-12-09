@@ -1,6 +1,55 @@
 .data
     	MAX_CLIENTES: .word 50
-    	clientes: .space 1600  # Espaco para armazenar informacoes dos clientes (Cada cliente possui 32 bytes, e precisamos de 50 clientes, entao 32*50 = 1600)
+    	cliente0: .space 50  # Espaco para armazenar informacoes do cliente0 (Cada cliente possui 50 bytes, sendo 12 para cpf, 9 para a conta e 29 para o nome)
+    	cliente1: .space 50
+    	cliente2: .space 50
+    	cliente3: .space 50
+    	cliente4: .space 50
+    	cliente5: .space 50
+    	cliente6: .space 50
+    	cliente7: .space 50
+    	cliente8: .space 50
+    	cliente9: .space 50
+    	cliente10: .space 50
+    	cliente11: .space 50
+    	cliente12: .space 50
+    	cliente13: .space 50
+    	cliente14: .space 50
+    	cliente15: .space 50
+    	cliente16: .space 50
+    	cliente17: .space 50
+    	cliente18: .space 50
+    	cliente19: .space 50
+    	cliente20: .space 50
+    	cliente21: .space 50
+    	cliente22: .space 50
+    	cliente23: .space 50
+    	cliente24: .space 50
+    	cliente25: .space 50
+    	cliente26: .space 50
+    	cliente27: .space 50
+    	cliente28: .space 50
+    	cliente29: .space 50
+    	cliente30: .space 50
+    	cliente31: .space 50
+    	cliente32: .space 50
+    	cliente33: .space 50
+    	cliente34: .space 50
+    	cliente35: .space 50
+    	cliente36: .space 50
+    	cliente37: .space 50
+    	cliente38: .space 50
+    	cliente39: .space 50
+    	cliente40: .space 50
+    	cliente41: .space 50
+    	cliente42: .space 50
+    	cliente43: .space 50
+    	cliente44: .space 50
+    	cliente45: .space 50
+    	cliente46: .space 50
+    	cliente47: .space 50
+    	cliente48: .space 50
+    	cliente49: .space 50
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "Cliente cadastrado com sucesso. Número da conta "
@@ -29,7 +78,7 @@
 	main:
     		# Inicializacao de variaveis
     		li $t0, 0          # $t0 = numClientes
-    		la $t1, clientes   # $t1 = endereco do array clientes
+    		la $t1, cliente0   # $t1 = endereco do cliente0
 
     		# Exemplo de uso:
     		la $a0, "12345678901"
@@ -46,32 +95,26 @@
 
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
-    		# Variáveis locais: $t0 = numClientes, $t1 = endereco do array clientes
-    		# Cada cliente tem 32 bytes e é estruturado da seguinte maneira: 0-12 bytes = CPF / 13-21 bytes = numConta / 22-31 bytes = nome
+    		# Variaveis locais: $t0 = numClientes, $t1 = endereco do bloco de clientes
+    		# Cada cliente tem 50 bytes e é estruturado da seguinte maneira: 0-11 bytes = CPF / 12-20 bytes = numConta / 21-49 bytes = nome
 
     		# Verificar se o limite de clientes foi atingido
-    		lw $t2, MAX_CLIENTES
+   		lw $t2, MAX_CLIENTES
     		bge $t0, $t2, limiteAtingido
 
-    		# Copiar informacoes para a estrutura do cliente
-    		sw $a0, 0($t1)      # clientes[numClientes].cpf = cpf / 0-12 devido ao cpf ter 11 digitos + o null
-    		sw $a1, 12($t1)     # clientes[numClientes].conta = conta / 13-21 devido a conta ter 8 digitos + o null
-    		sw $a2, 22($t1)     # clientes[numClientes].nome = nome / 22-31 devido o tamanho maximo para um nome ter 9 bytes + o null
+    		# Calcular o offset para o cliente atual
+    		mul $t3, $t0, 50  # Cada cliente tem 50 bytes
+    		add $t4, $t1, $t3 # Endereco do cliente atual
 
-    		# Calcular digito verificador
-    		lw $t3, 12($t1)     # $t3 = endereco de clientes[numClientes].conta
-    		jal calcularDigitoVerificador
-    		sb $v0, 19($t1)     # clientes[numClientes].conta[6] = dígito verificador
-    		sb $zero, 20($t1)   # clientes[numClientes].conta[7] = '\0'
+    		# Copiar informações para a estrutura do cliente
+    		sw $a0, 0($t4)      # clientes[numClientes].cpf = cpf / 0-11 devido ao cpf ter 12 digitos (incluindo '\0')
+    		sw $a1, 12($t4)     # clientes[numClientes].conta = conta / 12-20 devido a conta ter 9 digitos (incluindo '\0')
+    		sw $a2, 21($t4)     # clientes[numClientes].nome = nome / 21-49 devido ao tamanho maximo para um nome ter 29 bytes (incluindo '\0')
 
     		# Mensagem de sucesso  
-   		print_str(CLIENTE_CADASTRADO_MSG) # $a0 = string para cliente cadastrado, definida no .data
-    
-    		print_str(12($t1))	# $a0 = endereco de clientes[numClientes].conta
+    		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
 
-		print_str(19($t1))	# $a0 = digito verificador
-	
-		print_bl()	# Macro para imprimir uma quebra de linha
+    		print_str(12($t4))  # $a0 = endereco de clientes[numClientes].conta
 
     		# Incrementar numClientes
     		addi $t0, $t0, 1
@@ -80,7 +123,7 @@
     		j fimFuncao
 
 	limiteAtingido:
-		print_str(LIMITE_ATINGIDO_MSG)	# $a0 = string para limite atingido, definida no .data	
+    		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data  
 
 	fimFuncao:
     		jr $ra              # Retornar da funcao
