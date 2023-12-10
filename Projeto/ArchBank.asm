@@ -52,7 +52,8 @@
     	cliente49: .space 50
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
-   	CLIENTE_CADASTRADO_MSG: .asciiz "Cliente cadastrado com sucesso. Número da conta "
+    	ESTOU_AQUI: .asciiz "Estou aqui"
+   	CLIENTE_CADASTRADO_MSG: .asciiz "Cliente cadastrado com sucesso. Número da conta: "
    	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
    	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
    	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: \n"
@@ -131,7 +132,11 @@
     		# Verificar se o limite de clientes foi atingido
    		lw $t2, MAX_CLIENTES
     		bge $t0, $t2, limiteAtingido
-
+	
+		la $a0, cpf
+		la $a1, conta
+		la $a2, nome
+		
     		# Calcular o offset para o cliente atual
     		mul $t3, $t0, 50  # Cada cliente tem 50 bytes
     		add $t4, $t1, $t3 # Endereco do cliente atual
@@ -142,14 +147,19 @@
     		li $t9, '-'         # Carrega em $t9 o caractere '-'
    		sb $t9, 18($t4)     # clientes[numClientes].conta[7] = '-'
     		la $a0, conta       # Passa o endereco da conta para a funcao calcularDigitoVerificador
+    		addi $sp, $sp, -4
+    		sw $ra, 0($sp)
+    		
     		jal calcularDigitoVerificador
     		sb $v0, 19($t4)     # clientes[numClientes].conta[8] = digito verificador calculado (sobrando o byte 20 para o '\0')
-    		sw $a2, 21($t4)     # clientes[numClientes].nome = nome / 21-49 devido ao tamanho maximo para um nome ter 29 bytes (incluindo '\0')
+    		sw $a2, 24($t4)     # clientes[numClientes].nome = nome / 21-49 devido ao tamanho maximo para um nome ter 29 bytes (incluindo '\0')
 
     		# Mensagem de sucesso  
     		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
-
-    		# print_str(12($t4))  # $a0 = endereco de clientes[numClientes].conta
+    		
+		addi $sp, $sp, -4
+    		sw $ra, 0($sp)
+    		jal print_conta
 
     		# Incrementar numClientes
     		addi $t0, $t0, 1	# numClientes = numClientes + 1
@@ -160,12 +170,13 @@
     		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data  
 
 	fimFuncao:
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
     		jr $ra              # Retornar da funcao
 
 	calcularDigitoVerificador:
     		# Argumento: $a0 = endereco de conta
     		# Retorno: $v0 = digito verificador
-
     		# Pesos utilizados no calculo do digito verificador
     		li $t0, 2
 
@@ -175,10 +186,12 @@
     		# Loop para percorrer os primeiros 6 digitos da conta
     		li $t8, 0
     		
+    		la $t5, 12($t4)
+    		
     		calcularLoop:
         		# Converte o caractere numerico para o valor inteiro correspondente
-        		lb $t9, 0($a0)
-        		sub $t9, $t9, 48
+        		lb $t9, 0($t5)
+        		sub $t9, $t9, '0'
 
         		# Realiza a multiplicacao do digito pelo peso correspondente
         		mult $t9, $t0
@@ -186,7 +199,7 @@
         		add $t7, $t7, $t9
 
         		# Proximo digito e peso
-        		addi $a0, $a0, 1
+        		addi $t5, $t5, 1
         		addi $t0, $t0, 1
         		addi $t8, $t8, 1
 
@@ -201,7 +214,7 @@
     		# Retorna 'X' se o resto for 10, caso contrario, retorna o proprio resto convertido para caractere
     		li $t0, 10
    	 	beq $t7, $t0, resto10
-    		addi $t7, $t7, 48
+    		addi $t7, $t7, '0'
     		
     		j fimFuncaoCalculo
 
@@ -211,7 +224,22 @@
 	fimFuncaoCalculo:
     		move $v0, $t7
     		jr $ra           # Retornar da funcao
+    		
+    	print_conta:
+    	
+		la $t5, 12($t4)
+    		loop_conta:
+       			lb $t0, 0($t5)     # Carrega o próximo caractere da string
+        		beq $t0, $zero, end_string   # Verifica se é o caractere nulo de término da string
+        		addi $t5, $t5, 1   # Avança para o próximo caractere na string
+        		li $v0, 11         # Código do syscall para imprimir um caractere
+        		move $a0, $t0      # Carrega o caractere a ser impresso em $a0
+        		syscall
+        		j loop_conta             # Repete o loop para o próximo caractere
 
+    		end_string:
+        		jr $ra             # Retorna
+        		
 	strcpy:
  		# Argumentos $a0 = source, $a1 = destination, retorno em $v0
  		
@@ -228,6 +256,7 @@
         		j    loop 	# Volta para o loop
 
       		end:
+      			
         		jr  $ra  # Retornar
 
 	exit:
