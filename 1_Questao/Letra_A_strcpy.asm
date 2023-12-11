@@ -4,12 +4,11 @@
     
 .text
 	main: 
-      		la $a0, string  # Carregar o endereco da string de origem em $a0
-     		la $a1, destino # Carregar o endereco da string de destino em $a1
+      		la $a0, destino  # Carregar o endereco da string de destino em $a0
+     		la $a1, string  # Carregar o endereco da string de origem em $a1
       		jal strcpy  	# Chamar a funcao strcpy
 
 		addi $v0, $0, 4		# Codigo do syscall para imprimir uma string
-		move $a0, $a1		# Imprimir a string que foi copiada
     		syscall
 
       		j exit
@@ -17,8 +16,8 @@
  	strcpy:
  		# Argumentos $a0 = source, $a1 = destination, retorno em $v0
  		
- 		move $t1, $a0	# Temporario para iterar entre os indices da string source sem perder o endereco original
-		move $t2, $a1	# Temporario para iterar entre os indices da string destination sem perder o endereco original
+ 		move $t1, $a1	# Temporario para iterar entre os indices da string source sem perder o endereco original
+		move $t2, $a0	# Temporario para iterar entre os indices da string destination sem perder o endereco original
 		
      		loop:
         		lb $t0, 0($t1)  # Carregar o proximo byte de string
@@ -30,6 +29,7 @@
         		j    loop 	# Volta para o loop
 
       		end:
+      			move $v0, $a0	# Retorna o detination em $v0
         		jr  $ra  # Retornar
 
 	exit:
