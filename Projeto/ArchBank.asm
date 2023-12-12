@@ -53,11 +53,16 @@
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
     	ESTOU_AQUI: .asciiz "Estou aqui"
-   	CLIENTE_CADASTRADO_MSG: .asciiz "Cliente cadastrado com sucesso. Número da conta: "
+   	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
    	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
    	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
    	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (até 33 digitos)\n"
+   	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
    	
+   	conta_cadastrar: .ascii "conta_cadastrar"
+ 	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
+   	
+   	input_string: .space 50
    	cpf: .space 11	 	# Espaco na memoria para armazenar o cpf lido no input
 	conta: .space 6 	# Espaco na memoria para armazenar o numero da conta lido no input
 	nome: .space 33		# Espaco na memoria para armazenar o nome lido no input
@@ -98,41 +103,60 @@
     		li $s0, 0          # $s0 = numClientes
     		la $s1, cliente0   # $s1 = endereco do cliente0
 
-    		# Exemplo de uso:
-    		li $v0, 4		# Codigo do syscall para imprimir uma string
-		la $a0, CLIENTE_CPF_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
-		syscall
-	
-    		li $v0, 8	# Codigo do syscall para ler uma string como input
-    		la $a0, cpf	# Salva o valor lido no espaco cpf reservado na memoria
-    		li $a1, 12	# Tamanho de bytes maximo a ser lido
+    		li $v0, 4
+    		la $a0, COMANDO
     		syscall
     		
-    		print_bl()	# Quebra uma linha
-    		
-    		li $v0, 4		# Codigo do syscall para imprimir uma string
-		la $a0, CLIENTE_CONTA_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
-		syscall
-	
-    		li $v0, 8	# Codigo do syscall para ler uma string como input
-    		la $a0, conta	# Salva o valor lido no espaco cpf reservado na memoria
-    		li $a1, 7	# Tamanho de bytes maximo a ser lido
+    		li $v0, 8
+    		la $a0, input_string
+    		li $a1, 50
     		syscall
     		
-    		print_bl()	# Quebra uma linha
+    		jal decodificaInput
     		
-    		li $v0, 4		# Codigo do syscall para imprimir uma string
-		la $a0, CLIENTE_NOME_MSG	# $a0 = string para pedir cpf do cliente, definida no .data
-		syscall
-	
-    		li $v0, 8	# Codigo do syscall para ler uma string como input
-    		la $a0, nome	# Salva o valor lido no espaco cpf reservado na memoria
-    		li $a1, 34	# Tamanho de bytes maximo a ser lido
-    		syscall
-    		
-    		jal cadastrarCliente
-
-    		j exit	# Fim do programa  
+    		j exit
+    	
+    	# Teste: cliente_cadastrar-<13967492419>-<12345678>-<Marceline>
+    	
+    	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
+    		move $t0, $a0 # Move o endereço de input_string para $t0
+    		li $t1, '-' # Carrega o hifen em $t1
+    		la $t2, stringComando # Carrega o endereço da string a ser preenchida com o comando para ser comparado
+    	
+    		copiaComando:
+    		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
+        	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
+        	sb $t0, 0($t2) # Copia o byte em $t0 para o endereço em $t2
+        	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o próximo byte
+        	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
+        	j copiaComando
+        	
+        	comparaComando:
+    		la $a0, stringComando
+    		la $a1, conta_cadastrar
+    		guardar_ra_pilha() # Salva o $ra atual na pilha
+    		jal strcmp
+    		beq $v0, $zero, decodificaCadastrarCliente
+    	
+    	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
+    		li $a2, 11 # Num de bytes do cpf a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 17 # Endereço do começo do cpf contido na string
+    		la $a0, cpf # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    	
+    		li $a2, 8 # Num de bytes do numero da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 31 # Endereço do começo do numero da conta contido na string (contando com ">-<")
+    		la $a0, conta # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    	
+    		la $a1, input_string # Source de strcpy
+    		addi $a1, $a1, 42 # Endereço do começo do nome contido na string (contando com ">-<")
+    		la $a0, nome # Destination de strcpy
+    		jal strcpy # Chama strcpy
+    	
+    		j cadastrarCliente # Chama funcao cadastrarCliente
 
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
@@ -143,10 +167,6 @@
    		lw $t2, MAX_CLIENTES
     		bge $s0, $t2, limiteAtingido
 	
-		
-		la $a1, conta
-		la $a2, nome
-		
     		# Calcular o offset para o cliente atual
     		mul $t3, $s0, 50  # Cada cliente tem 50 bytes
     		add $t4, $s1, $t3 # Endereco do cliente atual
@@ -155,7 +175,6 @@
     		la $a0, 0($t4)	# Carrega em $a0 a posicao inicial do cpf do cliente	(cliente[numClientes].cpf[0])
     		la $a1, cpf	# Carrega em #a1 o cpf digitado pelo usuario, que estava na memoria
     		la $a2, 11	# Carrega em $a2 a quantidade de bytes a serem copiadas de "cpf"
-    		guardar_ra_pilha()	# Salva o $ra atual na pilha
     		jal memcpy	# Chama a funcao memcpy
     		
     		la $a0, 11($t4)	# Carrega em $a0 a posicao inicial do numero da conta do cliente 	(cliente[numClientes].conta[0])
