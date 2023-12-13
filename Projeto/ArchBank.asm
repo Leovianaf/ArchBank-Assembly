@@ -1,58 +1,57 @@
 .data
     	MAX_CLIENTES: .word 50
-    	cliente0: .space 50  # Espaco para armazenar informacoes do cliente0 (Cada cliente possui 50 bytes, sendo 11 para cpf, 8 para a conta e 33 para o nome)
-    	cliente1: .space 50
-    	cliente2: .space 50
-    	cliente3: .space 50
-    	cliente4: .space 50
-    	cliente5: .space 50
-    	cliente6: .space 50
-    	cliente7: .space 50
-    	cliente8: .space 50
-    	cliente9: .space 50
-    	cliente10: .space 50
-    	cliente11: .space 50
-    	cliente12: .space 50
-    	cliente13: .space 50
-    	cliente14: .space 50
-    	cliente15: .space 50
-    	cliente16: .space 50
-    	cliente17: .space 50
-    	cliente18: .space 50
-    	cliente19: .space 50
-    	cliente20: .space 50
-    	cliente21: .space 50
-    	cliente22: .space 50
-    	cliente23: .space 50
-    	cliente24: .space 50
-    	cliente25: .space 50
-    	cliente26: .space 50
-    	cliente27: .space 50
-    	cliente28: .space 50
-    	cliente29: .space 50
-    	cliente30: .space 50
-    	cliente31: .space 50
-    	cliente32: .space 50
-    	cliente33: .space 50
-    	cliente34: .space 50
-    	cliente35: .space 50
-    	cliente36: .space 50
-    	cliente37: .space 50
-    	cliente38: .space 50
-    	cliente39: .space 50
-    	cliente40: .space 50
-    	cliente41: .space 50
-    	cliente42: .space 50
-    	cliente43: .space 50
-    	cliente44: .space 50
-    	cliente45: .space 50
-    	cliente46: .space 50
-    	cliente47: .space 50
-    	cliente48: .space 50
-    	cliente49: .space 50
+    	cliente0: .space 64  # Espaco para armazenar informacoes do cliente0 (Cada cliente possui 64 bytes, sendo 11 para cpf, 8 para a conta, 6 para o saldo (em centavos), 6 para o limite (em centavos), 6 para a fatura/divida (em centavos) e 27 para o nome)
+    	cliente1: .space 64
+    	cliente2: .space 64
+    	cliente3: .space 64
+    	cliente4: .space 64
+    	cliente5: .space 64
+    	cliente6: .space 64
+    	cliente7: .space 64
+    	cliente8: .space 64
+    	cliente9: .space 64
+    	cliente10: .space 64
+    	cliente11: .space 64
+    	cliente12: .space 64
+    	cliente13: .space 64
+    	cliente14: .space 64
+    	cliente15: .space 64
+    	cliente16: .space 64
+    	cliente17: .space 64
+    	cliente18: .space 64
+    	cliente19: .space 64
+    	cliente20: .space 64
+    	cliente21: .space 64
+    	cliente22: .space 64
+    	cliente23: .space 64
+    	cliente24: .space 64
+    	cliente25: .space 64
+    	cliente26: .space 64
+    	cliente27: .space 64
+    	cliente28: .space 64
+    	cliente29: .space 64
+    	cliente30: .space 64
+    	cliente31: .space 64
+    	cliente32: .space 64
+    	cliente33: .space 64
+    	cliente34: .space 64
+    	cliente35: .space 64
+    	cliente36: .space 64
+    	cliente37: .space 64
+    	cliente38: .space 64
+    	cliente39: .space 64
+    	cliente40: .space 64
+    	cliente41: .space 64
+    	cliente42: .space 64
+    	cliente43: .space 64
+    	cliente44: .space 64
+    	cliente45: .space 64
+    	cliente46: .space 64
+    	cliente47: .space 64
+    	cliente48: .space 64
+    	cliente49: .space 64
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
-    	ESTOU_AQUI: .asciiz "Estou aqui"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
    	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
    	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
@@ -62,10 +61,13 @@
    	conta_cadastrar: .ascii "conta_cadastrar"
  	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
    	
-   	input_string: .space 50
+   	input_string: .space 70
    	cpf: .space 11	 	# Espaco na memoria para armazenar o cpf lido no input
 	conta: .space 6 	# Espaco na memoria para armazenar o numero da conta lido no input
-	nome: .space 33		# Espaco na memoria para armazenar o nome lido no input
+	saldo: .asciiz "000000"		# Valor padrao para um saldo ao cadastrar o cliente
+	limite: .asciiz "150000"	# Valor padrao para um limite ao cadastrar o cliente
+	fatura: .asciiz "000000"	# Valor padrao para uma fatura ao cadastrar o cliente
+	nome: .space 27		# Espaco na memoria para armazenar o nome lido no input
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
 	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
@@ -116,7 +118,7 @@
     		
     		j exit
     	
-    	# Teste: cliente_cadastrar-<13967492419>-<12345678>-<Marceline>
+    	# Teste: conta_cadastrar-13967492419-765432-Marceline
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
     		move $t0, $a0 # Move o endereço de input_string para $t0
@@ -141,18 +143,18 @@
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 17 # Endereço do começo do cpf contido na string
+    		addi $a1, $a1, 16 # Endereço do começo do cpf contido na string
     		la $a0, cpf # Destination de memcpy
     		jal memcpy # Chama memcpy
     	
-    		li $a2, 8 # Num de bytes do numero da conta a serem copiados
+    		li $a2, 6 # Num de bytes do numero da conta a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 31 # Endereço do começo do numero da conta contido na string (contando com ">-<")
+    		addi $a1, $a1, 28 # Endereço do começo do numero da conta contido na string
     		la $a0, conta # Destination de memcpy
     		jal memcpy # Chama memcpy
     	
     		la $a1, input_string # Source de strcpy
-    		addi $a1, $a1, 42 # Endereço do começo do nome contido na string (contando com ">-<")
+    		addi $a1, $a1, 35 # Endereço do começo do nome contido na string
     		la $a0, nome # Destination de strcpy
     		jal strcpy # Chama strcpy
     	
@@ -161,17 +163,17 @@
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
     		# Variaveis locais: $s0 = numClientes, $s1 = endereco do bloco de clientes
-    		# Cada cliente tem 50 bytes e é estruturado da seguinte maneira: 0-10 bytes = CPF / 11-19 bytes = numConta / 20-49 bytes = nome
+    		# Cada cliente tem 64 bytes e é estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 
     		# Verificar se o limite de clientes foi atingido
    		lw $t2, MAX_CLIENTES
     		bge $s0, $t2, limiteAtingido
 	
     		# Calcular o offset para o cliente atual
-    		mul $t3, $s0, 50  # Cada cliente tem 50 bytes
+    		mul $t3, $s0, 64  # Cada cliente tem 64 bytes
     		add $t4, $s1, $t3 # Endereco do cliente atual
 
-    		# Copiar informações para a estrutura do cliente
+    		# Copiar informacoes para a estrutura do cliente
     		la $a0, 0($t4)	# Carrega em $a0 a posicao inicial do cpf do cliente	(cliente[numClientes].cpf[0])
     		la $a1, cpf	# Carrega em #a1 o cpf digitado pelo usuario, que estava na memoria
     		la $a2, 11	# Carrega em $a2 a quantidade de bytes a serem copiadas de "cpf"
@@ -189,7 +191,22 @@
     		jal calcularDigitoVerificador
     		sb $v0, 18($t4)     # clientes[numClientes].conta[8] = digito verificador calculado
     		
-    		la $a0, 19($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
+    		la $a0, 19($t4)	# Carrega em $a0 a posicao inicial do saldo do cliente 	(cliente[numClientes].saldo[0])
+    		la $a1, saldo	# Carrega em #a1 o saldo inicial para um cliente definido na memoria
+    		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "saldo_inicial"
+    		jal memcpy	# Chama a funcao memcpy
+    		
+    		la $a0, 25($t4)	# Carrega em $a0 a posicao inicial do limite do cliente (cliente[numClientes].limite[0])
+    		la $a1, limite	# Carrega em #a1 o limite inicial para um cliente definido na memoria
+    		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "limite_inicial"
+    		jal memcpy	# Chama a funcao memcpy
+    		
+    		la $a0, 31($t4)	# Carrega em $a0 a posicao inicial da fatura do cliente (cliente[numClientes].fatura[0])
+    		la $a1, fatura	# Carrega em #a1 o limite inicial para um cliente definido na memoria
+    		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "limite_inicial"
+    		jal memcpy	# Chama a funcao memcpy
+    		
+    		la $a0, 37($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
     		la $a1, nome	# Carrega em #a1 o nome digitado pelo usuario, que estava na memoria
     		jal strcpy	# Chama a funcao memcpy
 
