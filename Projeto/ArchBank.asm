@@ -223,53 +223,7 @@
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
-    		jr $ra              # Retornar da funcao
-
-	calcularDigitoVerificador:
-    		# Argumento: $a0 = endereco de conta
-    		# Retorno: $v0 = digito verificador
-    		li $t0, 2	# Pesos utilizados no calculo do digito verificador
-
-    		li $t7, 0	# Variavel para armazenar a soma ponderada dos dígitos
-
-    		li $t8, 0	# Loop para percorrer os primeiros 6 digitos da conta
-    		
-    		la $t5, 11($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente
-    		
-    		calcularLoop:
-        		lb $t9, 0($t5)		# Carrega em $t9 o caractere do numero da conta atual
-        		addi $t9, $t9, -48  	# Converte o caractere para sua versao numerica
-       		
-        		mult $t9, $t0		# Realiza a multiplicacao do digito pelo peso correspondente
-        		mflo $t9		# O que ele guarda aqui?
-        		add $t7, $t7, $t9	# Adiciona a $t7 o valor multiplicado pelo peso, para obter a soma ponderada
-
-        		# Proximo digito e peso
-        		addi $t5, $t5, 1	# Avanca 1 byte no endereco da conta
-        		addi $t0, $t0, 1	# Acrescenta 1 ao peso
-        		addi $t8, $t8, 1	# Acrescenta 1 ao contador de bytes ja lidos
-
-        		# Condicao de parada
-       		 	bne $t8, 5, calcularLoop	# Enquanto a quantidade de bytes calculada for < 5, continua caculando
-        		nop
-
-    		# Calcula o resto da divisao da soma pelo numero 11
-    		li $t0, 11       # Carrega 11 em $t0 para fazer a divisao
-    		rem $t7, $t7, $t0 # Divide $t7 por $t0 e guarda o resto da divisao em $t7
-
-    		# Retorna 'X' se o resto for 10, caso contrario, retorna o proprio resto convertido para caractere
-    		li $t0, 10		# Carrega 10 em $t0 para comparar
-   	 	beq $t7, $t0, resto10	# Se o resto for 10, jump para resto10
-    		addi $t7, $t7, 48	# Converte o numero para sua versao em caractere
-    		
-    		j fimFuncaoCalculo
-
-	resto10:
-    		li $t7, 88       # 88 = numero do caractere 'X'
-
-	fimFuncaoCalculo:
-    		move $v0, $t7	# Guarda em $v0 o retorno da funcao (digito verificador)
-    		jr $ra          # Jump para a funcao cadastrarCliente   		
+    		jr $ra              # Retornar da funcao	   		
         		
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
