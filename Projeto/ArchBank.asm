@@ -118,7 +118,7 @@
     		
     		j exit
     	
-    	# Teste: conta_cadastrar-13967492419-765432-Marceline
+    	# Teste: conta_cadastrar-13967492419-100010-Marceline
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
     		move $t0, $a0 # Move o endereço de input_string para $t0
@@ -179,7 +179,7 @@
     		la $a2, 11	# Carrega em $a2 a quantidade de bytes a serem copiadas de "cpf"
     		jal memcpy	# Chama a funcao memcpy
     		
-    		la $a0, 11($t4)	# Carrega em $a0 a posicao inicial do numero da conta do cliente 	(cliente[numClientes].conta[0])
+    		la $a0, 11($t4)	# Carrega em $a0 a posicao inicial do numero da conta do cliente (cliente[numClientes].conta[0])
     		la $a1, conta	# Carrega em #a1 o numero da conta digitado pelo usuario, que estava na memoria
     		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "conta"
     		jal memcpy	# Chama a funcao memcpy
@@ -211,7 +211,10 @@
     		jal strcpy	# Chama a funcao memcpy
 
     		# Mensagem de sucesso  
-    		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data   		
+    		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
+    		
+    		la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente (cliente[numClientes].conta[0])
+		jal print_numConta      # Chama a funcao para imprimir o numero da conta com o digito verificador	
 
     		# Incrementar numClientes
     		addi $s0, $s0, 1	# numClientes = numClientes + 1
@@ -223,54 +226,26 @@
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
-    		jr $ra              # Retornar da funcao
-
-	calcularDigitoVerificador:
-    		# Argumento: $a0 = endereco de conta
-    		# Retorno: $v0 = digito verificador
-    		li $t0, 2	# Pesos utilizados no calculo do digito verificador
-
-    		li $t7, 0	# Variavel para armazenar a soma ponderada dos dígitos
-
-    		li $t8, 0	# Loop para percorrer os primeiros 6 digitos da conta
-    		
-    		la $t5, 11($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente
-    		
-    		calcularLoop:
-        		lb $t9, 0($t5)		# Carrega em $t9 o caractere do numero da conta atual
-        		addi $t9, $t9, -48  	# Converte o caractere para sua versao numerica
-       		
-        		mult $t9, $t0		# Realiza a multiplicacao do digito pelo peso correspondente
-        		mflo $t9		# O que ele guarda aqui?
-        		add $t7, $t7, $t9	# Adiciona a $t7 o valor multiplicado pelo peso, para obter a soma ponderada
-
-        		# Proximo digito e peso
-        		addi $t5, $t5, 1	# Avanca 1 byte no endereco da conta
-        		addi $t0, $t0, 1	# Acrescenta 1 ao peso
-        		addi $t8, $t8, 1	# Acrescenta 1 ao contador de bytes ja lidos
-
-        		# Condicao de parada
-       		 	bne $t8, 5, calcularLoop	# Enquanto a quantidade de bytes calculada for < 5, continua caculando
-        		nop
-
-    		# Calcula o resto da divisao da soma pelo numero 11
-    		li $t0, 11       # Carrega 11 em $t0 para fazer a divisao
-    		rem $t7, $t7, $t0 # Divide $t7 por $t0 e guarda o resto da divisao em $t7
-
-    		# Retorna 'X' se o resto for 10, caso contrario, retorna o proprio resto convertido para caractere
-    		li $t0, 10		# Carrega 10 em $t0 para comparar
-   	 	beq $t7, $t0, resto10	# Se o resto for 10, jump para resto10
-    		addi $t7, $t7, 48	# Converte o numero para sua versao em caractere
-    		
-    		j fimFuncaoCalculo
-
-	resto10:
-    		li $t7, 88       # 88 = numero do caractere 'X'
-
-	fimFuncaoCalculo:
-    		move $v0, $t7	# Guarda em $v0 o retorno da funcao (digito verificador)
-    		jr $ra          # Jump para a funcao cadastrarCliente   		
+    		jr $ra              # Retornar da funcao	   		
         		
+	# Parametros -> $a0 - endereco de conta na memoria;
+	print_numConta :
+    		li $v0, 11	# Codigo do syscall para imprimir um caractere
+    		li $t1, 8       # Número de bytes a serem impressos
+    		la $t5, 0($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente, clientes[numCliente].conta[0]
+
+		printLoop:
+    			lb $t2, 0($t5)	# Carrega o byte da posição atual
+    			move $a0, $t2   # Move o byte para $a0 (argumento do syscall)
+    			syscall
+
+    			addi $t5, $t5, 1	# Avança para o próximo byte
+
+    			addi $t1, $t1, -1	# Decrementa o contador de bytes
+    			bnez $t1, printLoop     # Se ainda não foram impressos todos os bytes, continua o loop
+
+    		jr $ra		# Jump para a funcao cadastrarCliente		
+        
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
         	syscall
