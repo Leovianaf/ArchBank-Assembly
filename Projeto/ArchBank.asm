@@ -51,18 +51,8 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
-    	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
-   	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
-   	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
-   	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (até 33 digitos)\n"
-	CLIENTE_INVALIDO_MSG: .asciiz "Numero do cliente invalido\n"
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
-	VERIFICAR_LIMITE_MSG: .asciiz "Digite o número do cliente (0-10) para verificar o limite:\n"
-	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente é:\n"
-	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
-	PAGAMENTO_MSG: .asciiz "Digite o valor do pagamento:\n"
-	ESCOLHER_PAGAMENTO_MSG: .asciiz "Digite 0 para débito ou 1 para crédito:\n"
    	
    	conta_cadastrar: .ascii "conta_cadastrar"
  	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
