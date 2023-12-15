@@ -53,7 +53,13 @@
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. N�mero da conta: "
+   	CLIENTE_INVALIDO_MSG: .asciiz "Numero do cliente invalido\n"
    	COMANDO: .asciiz "Insira o comando para a opera��o desejada: \n"
+   	VERIFICAR_LIMITE_MSG: .asciiz "Digite o número do cliente (0-10) para verificar o limite:\n"
+	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente é:\n"
+	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
+	PAGAMENTO_MSG: .asciiz "Digite o valor do pagamento:\n"
+	ESCOLHER_PAGAMENTO_MSG: .asciiz "Digite 0 para débito ou 1 para crédito:\n"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -432,9 +438,101 @@
     		addi $s0, $s0, 1	# numClientes = numClientes + 1
 
     		j fimFuncao
+	
+	verificar_limite:
+		lw $t2, MAX_CLIENTES
+   		bltz $t0, cliente_invalido
+   		bge $t0, $t2, cliente_invalido
+
+    		sll $t3, $t0, 6
+   		la $t4, cliente0
+    		add $t4, $t4, $t3
+
+   		lw $t5, 44($t4)  # Offset 44 corresponde à posição do limite dentro do cliente
+
+   		# Exibe o limite do cliente
+    		li $v0, 4
+    		la $a0, msg_limite
+    		syscall
+
+    		li $v0, 1
+    		move $a0, $t5
+    		syscall
+
+    		jr $ra
+    		
+	alterar_limite:
+		li $v0, 4
+    		la $a0, msg_novo_limite
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t1, $v0  # $t1 contém o novo limite
+
+    		lw $t2, MAX_CLIENTES
+    		bltz $t0, cliente_invalido
+    		bge $t0, $t2, cliente_invalido
+
+    		sll $t3, $t0, 6
+    		la $t4, cliente0
+    		add $t4, $t4, $t3
+
+    		sw $t1, 44($t4)  # Atualiza o limite
+
+    		jr $ra
+
+	realizar_pagamento:
+		li $v0, 4
+    		la $a0, PAGAMENTO_MSG
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t2, $v0  # $t2 contém o valor do pagamento
+
+    		li $v0, 4
+    		la $a0, ESCOLHER_PAGAMENTO_MSG
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t3, $v0  # $t3 contém a opção: 0 para débito, diferente de 0 para crédito
+
+    		lw $t4, MAX_CLIENTES
+    		bltz $t0, cliente_invalido
+    		bge $t0, $t4, cliente_invalido
+
+    		sll $t5, $t0, 6
+    		la $t6, cliente0
+    		add $t6, $t6, $t5
+
+	    	lw $t7, 38($t6)  # ALTERAR PQ NAO SEI QUAL corresponde à posição do saldo dentro do cliente
+    		lw $t8, 25($t6) 
+    		# Verifica se é débito
+    		beqz $t3, debito   # Se $t3 (opção) é zero, pula para a seção de débito
+    		# Se for crédito, subtrai do limite
+    		sub $t8, $t8, $t2   # $t8 (limite) -= $t2 (valor do pagamento)
+    		b fim_pagamento
+
+	debito:
+   		# Se for débito, subtrai do saldo
+    		sub $t7, $t7, $t2   # $t7 (saldo) -= $t2 (valor do pagamento)
+
+	fim_pagamento:
+    		sw $t7, 38($t6)  # Atualiza o saldo no cliente
+
+    		jr $ra
+
+	cliente_invalido:
+		li $v0, 4
+    		la $a0, CLIENTE_INVALIDO_MSG
+    		syscall
+
+    		jr $ra
 
 	limiteAtingido:
-    		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data  
+    		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data 
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
