@@ -54,7 +54,6 @@
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
-   	COMANDO_NAO_EXISTE: .asciiz "O comando inserido não existe, tente novamente"
    	VERIFICAR_LIMITE_MSG: .asciiz "Digite o número do cliente (0-10) para verificar o limite:\n"
 	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente é:\n"
 	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
