@@ -114,7 +114,6 @@
     		li $a1, 50
     		syscall
     		
-    		jal decodificaInput
     		li $v0, 4
     		la $a0, valor
     		syscall
