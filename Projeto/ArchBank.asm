@@ -115,9 +115,9 @@
     		syscall
     		
     		jal decodificaInput
-    		jal verificar_limite
-		jal alterar_limite
-		jal realizar_pagamento
+    		li $v0, 4
+    		la $a0, valor
+    		syscall
 
     		j exit
     	
@@ -131,8 +131,8 @@
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
-        	sb $t0, 0($t2) # Copia o byte em $t0 para o endereço em $t2
-        	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o próximo byte
+        	sb $t3, 0($t2) # Copia o byte em $t0 para o endere�o em $t2
+        	addi $t2, $t2, 1 # Incrementa o endereco de stringComando para copiar o pr�ximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
         	j copiaComando
         	
@@ -320,25 +320,7 @@
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
-    		jr $ra              # Retornar da funcao	   		
-        		
-	# Parametros -> $a0 - endereco de conta na memoria;
-	print_numConta :
-    		li $v0, 11	# Codigo do syscall para imprimir um caractere
-    		li $t1, 8       # Número de bytes a serem impressos
-    		la $t5, 0($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente, clientes[numCliente].conta[0]
-
-		printLoop:
-    			lb $t2, 0($t5)	# Carrega o byte da posição atual
-    			move $a0, $t2   # Move o byte para $a0 (argumento do syscall)
-    			syscall
-
-    			addi $t5, $t5, 1	# Avança para o próximo byte
-
-    			addi $t1, $t1, -1	# Decrementa o contador de bytes
-    			bnez $t1, printLoop     # Se ainda não foram impressos todos os bytes, continua o loop
-
-    		jr $ra		# Jump para a funcao cadastrarCliente		
+    		jr $ra              # Retornar da funcao	   			
         
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
