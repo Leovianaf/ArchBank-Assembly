@@ -61,6 +61,8 @@
 	VERIFICAR_LIMITE_MSG: .asciiz "Digite o número do cliente (0-10) para verificar o limite:\n"
 	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente é:\n"
 	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
+	PAGAMENTO_MSG: .asciiz "Digite o valor do pagamento:\n"
+	ESCOLHER_PAGAMENTO_MSG: .asciiz "Digite 0 para débito ou 1 para crédito:\n"
    	
    	conta_cadastrar: .ascii "conta_cadastrar"
  	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
@@ -105,6 +107,7 @@
     	.globl main
 	.globl verificar_limite
 	.globl alterar_limite
+	.globl realizar_pagamento
 
 	main:
     		# Inicializacao de variaveis
@@ -123,6 +126,7 @@
     		jal decodificaInput
     		jal verificar_limite
 		jal alterar_limite
+		jal realizar_pagamento
 
     		j exit
     	
@@ -271,9 +275,51 @@
 
     		jr $ra
 
+	realizar_pagamento:
+		li $v0, 4
+    		la $a0, PAGAMENTO_MSG
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t2, $v0  # $t2 contém o valor do pagamento
+
+    		li $v0, 4
+    		la $a0, ESCOLHER_PAGAMENTO_MSG
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t3, $v0  # $t3 contém a opção: 0 para débito, diferente de 0 para crédito
+
+    		lw $t4, MAX_CLIENTES
+    		bltz $t0, cliente_invalido
+    		bge $t0, $t4, cliente_invalido
+
+    		sll $t5, $t0, 6
+    		la $t6, cliente0
+    		add $t6, $t6, $t5
+
+	    	lw $t7, 38($t6)  # ALTERAR PQ NAO SEI QUAL corresponde à posição do saldo dentro do cliente
+    		lw $t8, 25($t6) 
+    		# Verifica se é débito
+    		beqz $t3, debito   # Se $t3 (opção) é zero, pula para a seção de débito
+    		# Se for crédito, subtrai do limite
+    		sub $t8, $t8, $t2   # $t8 (limite) -= $t2 (valor do pagamento)
+    		b fim_pagamento
+
+	debito:
+   		# Se for débito, subtrai do saldo
+    		sub $t7, $t7, $t2   # $t7 (saldo) -= $t2 (valor do pagamento)
+
+	fim_pagamento:
+    		sw $t7, 38($t6)  # Atualiza o saldo no cliente
+
+    		jr $ra
+
 	cliente_invalido:
 		li $v0, 4
-    		la $a0, msg_cliente_invalido
+    		la $a0, CLIENTE_INVALIDO_MSG
     		syscall
 
     		jr $ra
