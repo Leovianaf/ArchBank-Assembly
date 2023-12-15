@@ -52,8 +52,8 @@
     	cliente49: .space 64
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
-   	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. NÃºmero da conta: "
-   	COMANDO: .asciiz "Insira o comando para a operaÃ§Ã£o desejada: \n"
+   	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
+   	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
    	
    	conta_cadastrar: .ascii "conta_cadastrar"
  	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
