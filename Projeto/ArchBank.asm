@@ -166,7 +166,7 @@
     		
     		j exit
     	
-    	# Teste: conta_cadastrar-13967492419-765432-Marceline
+    	# Teste: conta_cadastrar-13967492419-100010-Marceline
     	# transferir_debito-100010-X-000222-5-001000
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
