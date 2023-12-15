@@ -54,6 +54,7 @@
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
+   	COMANDO_NAO_EXISTE: .asciiz "O comando inserido não existe, tente novamente"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -85,6 +86,10 @@
    	
    	# Para selecao do metodo de pegamento da funcao para fatura
    	metodoPagamento: .space 1
+   	
+   	# Para funcao dataHora
+   	data: .space 8 # formato DDMMAAAA dia/mes/ano
+   	hora: .space 6 # formato HHMMSS hora/min/seg
    	
    	# Pra armazenar apenas os comandos inseridos na input_string  	
  	stringComando: .space 20 
@@ -174,6 +179,7 @@
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
+        	beq $t3, 10, comparaComando # Se encontrar uma quebra de linha também pula pra funcao comparaComando
         	sb $t3, 0($t2) # Copia o byte em $t0 para o endereço em $t2
         	addi $t2, $t2, 1 # Incrementa o endereco de stringComando para copiar o próximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
@@ -253,6 +259,33 @@
     		la $a1, data_hora
     		jal strcmp
     		# beq $v0, $zero, decodificaDataHora
+    		
+    		# Para verificar se é salvar
+    		la $a0, stringComando
+    		la $a1, salvar
+    		jal strcmp
+    		# beq $v0, $zero, salvar
+    		
+    		# Para verificar se é recarregar
+    		la $a0, stringComando
+    		la $a1, recarregar
+    		jal strcmp
+    		# beq $v0, $zero, recarregar
+    		
+    		# Para verificar se é formatar
+    		la $a0, stringComando
+    		la $a1, formatar
+    		jal strcmp
+    		# beq $v0, $zero, formatar
+    		
+    		# Para comando não existente
+    		li $v0, 4
+    		la $a0, COMANDO_NAO_EXISTE
+    		syscall
+    		
+    		# Volta pro inicio
+    		carregar_ra_pilha()
+    		jr $ra
     	
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
@@ -270,7 +303,7 @@
     		la $a1, input_string # Source de strcpy
     		addi $a1, $a1, 35 # Endereço do começo do nome contido na string
     		la $a0, nome # Destination de strcpy
-    		jal strcpy # Chama strcpy
+    		jal strcpy2 # Chama strcpy
     	
     		j cadastrarCliente # Chama funcao cadastrarCliente
     		
@@ -358,7 +391,7 @@
     		la $a0, contaComDigito1 # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		li $a2, 6 # Num de bytes do valor a ser copiado
+    		li $a2, 6 # Num de bytes do valor a serem copiados
     		la $a1, input_string # Source de memcpy
     		addi $a1, $a1, 22 # Endereço do começo do valor contido na string
     		la $a0, valor # Destination de memcpy
@@ -371,6 +404,69 @@
     		jal memcpy # Chama memcpy
     		
     		# j pagarFatura
+    		
+    	decodificaSacar:
+    		li $a2, 8 # Num de bytes da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 6 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		li $a2, 6 # Num de bytes do valor a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 15 # Endereço do começo do num da conta contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# j sacar FUNCAO AINDA NAO CRIADA
+    		
+	decodificaDepositar:
+		li $a2, 8 # Num de bytes da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 10 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		li $a2, 6 # Num de bytes do valor a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 19 # Endereço do começo do num da conta contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# j depositar FUNCAO AINDA NAO CRIADA
+    		
+    	decodificaAlterarLimite:
+    		li $a2, 8 # Num de bytes da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 15 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# j alterarLimite
+    		
+    	decodificaContaFechar:
+    		li $a2, 8 # Num de bytes da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 13 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# j contaFechar FUNCAO AINDA NAO CRIADA
+    		
+    	decodificaDataHora:
+    		li $a2, 8 # Num de bytes da data a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 10 # Endereço do começo da data/hora contida na string
+    		la $a0, data # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		li $a2, 6 # Num de bytes da hora a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 19 # Endereço do começo da data/hora contida na string
+    		la $a0, hora # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# j dataHora
 
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
