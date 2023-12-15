@@ -7,8 +7,8 @@
         	lb $t2, 0($a1)   # Carrega o primeiro caractere de str2
 
     	loop_comparar:
+    		sub $v0, $t1, $t2  # Calcula a diferenca dos valores / Se for zero, entao e igual
         	beq $t1, $t2, continua_comparacao  # Se os caracteres sao iguais, continue
-        	sub $v0, $t1, $t2  # Calcula a diferenca dos valores / Se for zero, entao e igual
         	j fim_comparacao
 
    	continua_comparacao:
