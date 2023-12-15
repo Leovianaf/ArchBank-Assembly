@@ -53,9 +53,6 @@
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
-   	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
-   	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
-   	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (até 33 digitos)\n"
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
@@ -140,16 +137,16 @@
     		li $s0, 0          # $s0 = numClientes
     		la $s1, cliente0   # $s1 = endereco do cliente0
 
-    		li $v0, 4
-    		la $a0, COMANDO
+    		li $v0, 4	# Codigo do syscall para imprimir uma string
+    		la $a0, COMANDO	# Carrega a string para pedir o input de comando
     		syscall
     		
-    		li $v0, 8
-    		la $a0, input_string
-    		li $a1, 50
+    		li $v0, 8		# Codigo do syscall para pegar input de uma string
+    		la $a0, input_string	# Endereco do espaco na memoria para guardar o input
+    		li $a1, 70		# Quantidade maxima de caracteres para serem lidos no input
     		syscall
     		
-    		jal decodificaInput
+    		jal decodificaInput	# Jump para funcao que decodifica o comando para saber o que fazer
     		
     		#pra testar se armazenou as informações mesmo
     		li $v0, 4
@@ -167,6 +164,7 @@
     		j exit
     	
     	# Teste: conta_cadastrar-13967492419-100010-Marceline
+    	# transferir_debito-100010-X-000222-5-001000
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
     		move $t0, $a0 # Move o endereço de input_string para $t0
@@ -177,18 +175,18 @@
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
         	sb $t3, 0($t2) # Copia o byte em $t0 para o endereço em $t2
-        	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o próximo byte
+        	addi $t2, $t2, 1 # Incrementa o endereco de stringComando para copiar o próximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
         	j copiaComando
         	
         	comparaComando:
         	
         	# Para verificar se é conta_cadastrar
-    		la $a0, stringComando
-    		la $a1, conta_cadastrar
+    		la $a0, stringComando	# Carrega em $a0 a string do comando (tudo que tinha antes do '-')
+    		la $a1, conta_cadastrar	# Carrega em $a0 a string "conta_cadastrar" para saber se eh essa operacao
     		guardar_ra_pilha() # Salva o $ra atual na pilha
-    		jal strcmp
-    		beq $v0, $zero, decodificaCadastrarCliente
+    		jal strcmp	# Jump para funcao string compare
+    		beq $v0, $zero, decodificaCadastrarCliente	# $v0 possui o resultado de strcmp, se for 0 vai para a funcao do comando especifico
     		
     		# Para verificar se é conta_format
     		la $a0, stringComando
@@ -230,31 +228,31 @@
     		la $a0, stringComando
     		la $a1, sacar
     		jal strcmp
-    		beq $v0, $zero, decodificaSacar
+    		# beq $v0, $zero, decodificaSacar
     		
     		# Para verificar se é depositar
     		la $a0, stringComando
     		la $a1, depositar
     		jal strcmp
-    		beq $v0, $zero, decodificaDepositar
+    		# beq $v0, $zero, decodificaDepositar
     		
     		# Para verificar se é alterar_limite
     		la $a0, stringComando
     		la $a1, alterar_limite
     		jal strcmp
-    		beq $v0, $zero, decodificaAlterarLimite
+    		# beq $v0, $zero, decodificaAlterarLimite
     		
     		# Para verificar se é contar_fechar
     		la $a0, stringComando
     		la $a1, conta_fechar
     		jal strcmp
-    		beq $v0, $zero, decodificaContaFechar
+    		# beq $v0, $zero, decodificaContaFechar
     		
     		# Para verificar se é data_hora
     		la $a0, stringComando
     		la $a1, data_hora
     		jal strcmp
-    		beq $v0, $zero, decodificaDataHora
+    		# beq $v0, $zero, decodificaDataHora
     	
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
@@ -283,7 +281,7 @@
     		la $a0, contaComDigito # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		 j contaFormat # FUNCAO AINDA NAO CRIADA
+    		 # j contaFormat # FUNCAO AINDA NAO CRIADA
     		 
     	decodificaDebitoExtrato:
     		li $a2, 8 # Num de bytes do num da conta a ser copiado
@@ -292,7 +290,7 @@
     		la $a0, contaComDigito # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		 j debitoExtrato # FUNCAO AINDA NAO CRIADA 
+    		# j debitoExtrato # FUNCAO AINDA NAO CRIADA 
     		 
     	decodificaCreditoExtrato: 
     		li $a2, 8 # Num de bytes do num da conta a ser copiado
@@ -301,7 +299,7 @@
     		la $a0, contaComDigito # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		 j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
+    		# j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
     	
     	decodificaTransferirDebito:
     		# Pra string da primeira conta
@@ -351,7 +349,7 @@
     		la $a0, valor # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		j transferirCredito # FUNCAO AINDA NAO CRIADA 
+    		# j transferirCredito # FUNCAO AINDA NAO CRIADA 
     		
     	decodificaPagarFatura:
     		li $a2, 8 # Num de bytes da conta a serem copiados
@@ -372,7 +370,7 @@
     		la $a0, metodoPagamento # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		j pagarFatura
+    		# j pagarFatura
 
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
@@ -440,25 +438,7 @@
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
-    		jr $ra              # Retornar da funcao	   		
-        		
-	# Parametros -> $a0 - endereco de conta na memoria;
-	print_numConta :
-    		li $v0, 11	# Codigo do syscall para imprimir um caractere
-    		li $t1, 8       # Número de bytes a serem impressos
-    		la $t5, 0($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente, clientes[numCliente].conta[0]
-
-		printLoop:
-    			lb $t2, 0($t5)	# Carrega o byte da posição atual
-    			move $a0, $t2   # Move o byte para $a0 (argumento do syscall)
-    			syscall
-
-    			addi $t5, $t5, 1	# Avança para o próximo byte
-
-    			addi $t1, $t1, -1	# Decrementa o contador de bytes
-    			bnez $t1, printLoop     # Se ainda não foram impressos todos os bytes, continua o loop
-
-    		jr $ra		# Jump para a funcao cadastrarCliente		
+    		jr $ra              # Retornar da funcao	   		        	
         
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa

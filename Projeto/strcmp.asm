@@ -12,7 +12,7 @@
         	j fim_comparacao
 
    	continua_comparacao:
-        	beqz $t1, fim_comparacao  # Se $t1 = zero (diferenca encontrada), encerra a comparação
+        	beqz $t1, fim_comparacao  # Se $t1 = zero (fim da string), encerra a comparação
         	addi $a0, $a0, 1   # Avanca para o proximo caractere em str1
         	addi $a1, $a1, 1   # Avanca para o proximo caractere em str2
         	lb $t1, 0($a0)     # Carrega o proximo caractere de str1
