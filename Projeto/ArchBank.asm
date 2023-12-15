@@ -52,11 +52,15 @@
     	cliente49: .space 64
     	
     	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
-   	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
+   	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. NÃºmero da conta: "
    	CLIENTE_CPF_MSG: .asciiz "Digite o CPF do cliente que deseja cadastrar: (11 digitos)\n"
    	CLIENTE_CONTA_MSG: .asciiz "Digite o numero da conta do cliente que deseja cadastrar: (6 digitos)\n"
-   	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (até 33 digitos)\n"
-   	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
+   	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (atÃ© 33 digitos)\n"
+	CLIENTE_INVALIDO_MSG: .asciiz "Numero do cliente invalido\n"
+   	COMANDO: .asciiz "Insira o comando para a operaÃ§Ã£o desejada: \n"
+	VERIFICAR_LIMITE_MSG: .asciiz "Digite o nÃºmero do cliente (0-10) para verificar o limite:\n"
+	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente Ã©:\n"
+	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
    	
    	conta_cadastrar: .ascii "conta_cadastrar"
  	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
@@ -99,6 +103,8 @@
 
 .text
     	.globl main
+	.globl verificar_limite
+	.globl alterar_limite
 
 	main:
     		# Inicializacao de variaveis
@@ -115,21 +121,23 @@
     		syscall
     		
     		jal decodificaInput
-    		
+    		jal verificar_limite
+		jal alterar_limite
+
     		j exit
     	
     	# Teste: conta_cadastrar-13967492419-100010-Marceline
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
-    		move $t0, $a0 # Move o endereço de input_string para $t0
+    		move $t0, $a0 # Move o endereÃ§o de input_string para $t0
     		li $t1, '-' # Carrega o hifen em $t1
-    		la $t2, stringComando # Carrega o endereço da string a ser preenchida com o comando para ser comparado
+    		la $t2, stringComando # Carrega o endereÃ§o da string a ser preenchida com o comando para ser comparado
     	
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
-        	sb $t0, 0($t2) # Copia o byte em $t0 para o endereço em $t2
-        	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o próximo byte
+        	sb $t0, 0($t2) # Copia o byte em $t0 para o endereÃ§o em $t2
+        	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o prÃ³ximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
         	j copiaComando
         	
@@ -143,18 +151,18 @@
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 16 # Endereço do começo do cpf contido na string
+    		addi $a1, $a1, 16 # EndereÃ§o do comeÃ§o do cpf contido na string
     		la $a0, cpf # Destination de memcpy
     		jal memcpy # Chama memcpy
     	
     		li $a2, 6 # Num de bytes do numero da conta a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 28 # Endereço do começo do numero da conta contido na string
+    		addi $a1, $a1, 28 # EndereÃ§o do comeÃ§o do numero da conta contido na string
     		la $a0, conta # Destination de memcpy
     		jal memcpy # Chama memcpy
     	
     		la $a1, input_string # Source de strcpy
-    		addi $a1, $a1, 35 # Endereço do começo do nome contido na string
+    		addi $a1, $a1, 35 # EndereÃ§o do comeÃ§o do nome contido na string
     		la $a0, nome # Destination de strcpy
     		jal strcpy # Chama strcpy
     	
@@ -163,7 +171,7 @@
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
     		# Variaveis locais: $s0 = numClientes, $s1 = endereco do bloco de clientes
-    		# Cada cliente tem 64 bytes e é estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+    		# Cada cliente tem 64 bytes e Ã© estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 
     		# Verificar se o limite de clientes foi atingido
    		lw $t2, MAX_CLIENTES
@@ -221,6 +229,55 @@
 
     		j fimFuncao
 
+	verificar_limite:
+		lw $t2, MAX_CLIENTES
+   		bltz $t0, cliente_invalido
+   		bge $t0, $t2, cliente_invalido
+
+    		sll $t3, $t0, 6
+   		la $t4, cliente0
+    		add $t4, $t4, $t3
+
+   		lw $t5, 44($t4)  # Offset 44 corresponde Ã  posiÃ§Ã£o do limite dentro do cliente
+
+   		# Exibe o limite do cliente
+    		li $v0, 4
+    		la $a0, msg_limite
+    		syscall
+
+    		li $v0, 1
+    		move $a0, $t5
+    		syscall
+
+    		jr $ra
+	alterar_limite:
+		li $v0, 4
+    		la $a0, msg_novo_limite
+    		syscall
+
+    		li $v0, 5
+    		syscall
+    		move $t1, $v0  # $t1 contÃ©m o novo limite
+
+    		lw $t2, MAX_CLIENTES
+    		bltz $t0, cliente_invalido
+    		bge $t0, $t2, cliente_invalido
+
+    		sll $t3, $t0, 6
+    		la $t4, cliente0
+    		add $t4, $t4, $t3
+
+    		sw $t1, 44($t4)  # Atualiza o limite
+
+    		jr $ra
+
+	cliente_invalido:
+		li $v0, 4
+    		la $a0, msg_cliente_invalido
+    		syscall
+
+    		jr $ra
+
 	limiteAtingido:
     		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data  
 
@@ -231,18 +288,18 @@
 	# Parametros -> $a0 - endereco de conta na memoria;
 	print_numConta :
     		li $v0, 11	# Codigo do syscall para imprimir um caractere
-    		li $t1, 8       # Número de bytes a serem impressos
+    		li $t1, 8       # NÃºmero de bytes a serem impressos
     		la $t5, 0($a0)	# Guarda em $t5 o endereco do inicio do numero da conta do cliente, clientes[numCliente].conta[0]
 
 		printLoop:
-    			lb $t2, 0($t5)	# Carrega o byte da posição atual
+    			lb $t2, 0($t5)	# Carrega o byte da posiÃ§Ã£o atual
     			move $a0, $t2   # Move o byte para $a0 (argumento do syscall)
     			syscall
 
-    			addi $t5, $t5, 1	# Avança para o próximo byte
+    			addi $t5, $t5, 1	# AvanÃ§a para o prÃ³ximo byte
 
     			addi $t1, $t1, -1	# Decrementa o contador de bytes
-    			bnez $t1, printLoop     # Se ainda não foram impressos todos os bytes, continua o loop
+    			bnez $t1, printLoop     # Se ainda nÃ£o foram impressos todos os bytes, continua o loop
 
     		jr $ra		# Jump para a funcao cadastrarCliente		
         
