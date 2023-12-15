@@ -58,10 +58,45 @@
    	CLIENTE_NOME_MSG: .asciiz "Digite o nome do cliente que deseja cadastrar: (até 33 digitos)\n"
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
    	
-   	conta_cadastrar: .ascii "conta_cadastrar"
- 	stringComando: .space 20 # vai armazenar o comando inserido na string do terminal
+   	conta_cadastrar: .asciiz "conta_cadastrar"
+   	conta_format: .asciiz "conta_format"
+   	debito_extrato: .asciiz "debito_extrato"
+   	credito_extrato: .asciiz "credito_extrato"
+   	transferir_debito: .asciiz "transferir_debito"
+   	transferir_credito: .asciiz "transferir_credito"
+   	pagar_fatura: .asciiz "pagar_fatura"
+   	sacar: .asciiz "sacar"
+   	depositar: .asciiz "depositar"
+   	alterar_limite: .asciiz "alterar_limite"
+   	conta_fechar: .asciiz "conta_fechar"
+   	data_hora: .asciiz "data_hora"
    	
+   	# Strings sem hifen
+   	salvar: .asciiz "salvar"
+   	recarregar: .asciiz "recarregar"
+   	formatar: .asciiz "formatar"
+	
+	# Para as funcoes que recebem duas contas como argumento
+	contaComDigito1: .space 9
+	contaComDigito2: .space 9
+	
+	# Para funcoes que recebem apenas uma conta como argumento
+   	contaComDigito: .space 8 
+   	
+   	# Para funcoes que recebem valor como argumento
+   	valor: .space 6
+   	
+   	# Para selecao do metodo de pegamento da funcao para fatura
+   	metodoPagamento: .space 1
+   	
+   	# Pra armazenar apenas os comandos inseridos na input_string  	
+ 	stringComando: .space 20 
+   	
+   	# String digitada pelo usuario no terminal do programa
    	input_string: .space 70
+   	
+   	teste: .asciiz "to aqui"
+   	
    	cpf: .space 11	 	# Espaco na memoria para armazenar o cpf lido no input
 	conta: .space 6 	# Espaco na memoria para armazenar o numero da conta lido no input
 	saldo: .asciiz "000000"		# Valor padrao para um saldo ao cadastrar o cliente
@@ -116,6 +151,19 @@
     		
     		jal decodificaInput
     		
+    		#pra testar se armazenou as informações mesmo
+    		li $v0, 4
+    		la $a0, contaComDigito1
+    		syscall
+    		
+    		li $v0, 4
+    		la $a0, contaComDigito2
+    		syscall
+    		
+    		li $v0, 4
+    		la $a0, valor
+    		syscall
+    		
     		j exit
     	
     	# Teste: conta_cadastrar-13967492419-100010-Marceline
@@ -128,17 +176,85 @@
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
-        	sb $t0, 0($t2) # Copia o byte em $t0 para o endereço em $t2
+        	sb $t3, 0($t2) # Copia o byte em $t0 para o endereço em $t2
         	addi $t2, $t2, 1 #Incrementa o endereco de stringComando para copiar o próximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
         	j copiaComando
         	
         	comparaComando:
+        	
+        	# Para verificar se é conta_cadastrar
     		la $a0, stringComando
     		la $a1, conta_cadastrar
     		guardar_ra_pilha() # Salva o $ra atual na pilha
     		jal strcmp
     		beq $v0, $zero, decodificaCadastrarCliente
+    		
+    		# Para verificar se é conta_format
+    		la $a0, stringComando
+    		la $a1, conta_format
+    		jal strcmp
+    		beq $v0, $zero, decodificaContaFormat
+    		
+    		# Para verificar se é de debito_extrato
+    		la $a0, stringComando
+    		la $a1, debito_extrato
+    		jal strcmp
+    		beq $v0, $zero, decodificaDebitoExtrato
+    		
+    		# Para verificar se é credito_extrato
+    		la $a0, stringComando
+    		la $a1, credito_extrato
+    		jal strcmp
+    		beq $v0, $zero, decodificaCreditoExtrato
+    		
+    		# Para verificar se é transferir_debito
+    		la $a0, stringComando
+    		la $a1, transferir_debito
+    		jal strcmp
+    		beq $v0, $zero, decodificaTransferirDebito
+
+    		# Para verificar se é transferir_credito
+    		la $a0, stringComando
+    		la $a1, transferir_credito
+    		jal strcmp
+    		beq $v0, $zero, decodificaTransferirCredito
+    		
+    		# Para verificar se é pagar_fatura
+    		la $a0, stringComando
+    		la $a1, pagar_fatura
+    		jal strcmp
+    		beq $v0, $zero, decodificaPagarFatura
+    		
+    		# Para verificar se é sacar
+    		la $a0, stringComando
+    		la $a1, sacar
+    		jal strcmp
+    		beq $v0, $zero, decodificaSacar
+    		
+    		# Para verificar se é depositar
+    		la $a0, stringComando
+    		la $a1, depositar
+    		jal strcmp
+    		beq $v0, $zero, decodificaDepositar
+    		
+    		# Para verificar se é alterar_limite
+    		la $a0, stringComando
+    		la $a1, alterar_limite
+    		jal strcmp
+    		beq $v0, $zero, decodificaAlterarLimite
+    		
+    		# Para verificar se é contar_fechar
+    		la $a0, stringComando
+    		la $a1, conta_fechar
+    		jal strcmp
+    		beq $v0, $zero, decodificaContaFechar
+    		
+    		# Para verificar se é data_hora
+    		la $a0, stringComando
+    		la $a1, data_hora
+    		jal strcmp
+    		beq $v0, $zero, decodificaDataHora
     	
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
@@ -159,6 +275,104 @@
     		jal strcpy # Chama strcpy
     	
     		j cadastrarCliente # Chama funcao cadastrarCliente
+    		
+    	decodificaContaFormat:
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 13 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		 j contaFormat # FUNCAO AINDA NAO CRIADA
+    		 
+    	decodificaDebitoExtrato:
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 15 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		 j debitoExtrato # FUNCAO AINDA NAO CRIADA 
+    		 
+    	decodificaCreditoExtrato: 
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 16 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		 j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
+    	
+    	decodificaTransferirDebito:
+    		# Pra string da primeira conta
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 18 # Endereço do começo do primeiro num da conta contido na string
+    		la $a0, contaComDigito1 # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# Pra string da segunda conta
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 27 # Endereço do começo do segundo num da conta contido na string
+    		la $a0, contaComDigito2 # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# Pra string do valor
+    		li $a2, 6 # Num de bytes do valor a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 36 # Endereço do começo do valor contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# so pra testar, pode apagar
+    		carregar_ra_pilha()
+		jr $ra
+    		
+    	decodificaTransferirCredito:
+		# Pra string da primeira conta
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 19 # Endereço do começo do primeiro num da conta contido na string
+    		la $a0, contaComDigito1 # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# Pra string da segunda conta
+    		li $a2, 8 # Num de bytes do num da conta a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 28 # Endereço do começo do segundo num da conta contido na string
+    		la $a0, contaComDigito2 # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		# Pra string do valor
+    		li $a2, 6 # Num de bytes do valor a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 37 # Endereço do começo do valor contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		j transferirCredito # FUNCAO AINDA NAO CRIADA 
+    		
+    	decodificaPagarFatura:
+    		li $a2, 8 # Num de bytes da conta a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 13 # Endereço do começo do num da conta contido na string
+    		la $a0, contaComDigito1 # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		li $a2, 6 # Num de bytes do valor a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 22 # Endereço do começo do valor contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		li $a2, 1 # Num de bytes do metodo a ser copiado
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 29 # Endereço do metodo de pagamento contido na string
+    		la $a0, metodoPagamento # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		j pagarFatura
 
 	cadastrarCliente:
     		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
