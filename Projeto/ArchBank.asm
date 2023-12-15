@@ -51,6 +51,7 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
+    	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Número da conta: "
    	COMANDO: .asciiz "Insira o comando para a operação desejada: \n"
    	
