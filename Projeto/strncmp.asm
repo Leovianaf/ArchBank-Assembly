@@ -9,9 +9,9 @@
         	li $t3, 0        # Inicializa um contador para o numero de caracteres comparados
 
 	loop_comparar_max:
+		sub $v0, $t1, $t2  # Calcula a diferenca dos valores / Se for zero, entao e 
         	beq $t3, $a3, fim_comparacao_max  # Se o numero maximo de caracteres foi atingido, encerra a comparacao
         	beq $t1, $t2, continua_comparacao_max  # Se os caracteres sao iguais, continue
-        	sub $v0, $t1, $t2  # Calcula a diferenca dos valores / Se for zero, entao e igual
         	j fim_comparacao_max
 
     	continua_comparacao_max:
