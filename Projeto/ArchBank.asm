@@ -51,16 +51,13 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
-    	LIMITE_ATINGIDO_MSG: .asciiz "Limite de clientes atingido.\n"
+    	nomeBancoBanner: .asciiz "ArchBank-shell>> "
+    	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. N˙mero da conta: "
-   	CLIENTE_INVALIDO_MSG: .asciiz "Numero do cliente invalido\n"
-   	COMANDO: .asciiz "Insira o comando para a operaÁ„o desejada: \n"
-   	COMANDO_NAO_EXISTE: .asciiz "O comando inserido n„o existe, tente novamente"
-   	VERIFICAR_LIMITE_MSG: .asciiz "Digite o n√∫mero do cliente (0-10) para verificar o limite:\n"
-	MOSTRA_LIMITE_MSG: .asciiz "O limite desse cliente √©:\n"
-	NOVO_LIMITE_MSG: .asciiz "Alterar o novo limite do cliente para:\n"
-	PAGAMENTO_MSG: .asciiz "Digite o valor do pagamento:\n"
-	ESCOLHER_PAGAMENTO_MSG: .asciiz "Digite 0 para d√©bito ou 1 para cr√©dito:\n"
+   	CLIENTE_INVALIDO_MSG: .asciiz "\nNumero da conta do cliente invalido.\n"
+   	COMANDO_NAO_EXISTE: .asciiz "\nO comando inserido n„o existe, tente novamente.\n"
+   	LIMITE_ALTERADO_MSG: .asciiz "\nLimite alterado com sucesso. N˙mero da conta: "
+   	NOVO_LIMITE_MSG: .asciiz "Novo limite: "
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -76,16 +73,19 @@
    	data_hora: .asciiz "data_hora"
    	
    	# Strings sem hifen
-   	salvar: .asciiz "salvar"
-   	recarregar: .asciiz "recarregar"
-   	formatar: .asciiz "formatar"
+   	salvar_str: .asciiz "salvar"
+   	recarregar_str: .asciiz "recarregar"
+   	formatar_str: .asciiz "formatar"
 	
 	# Para as funcoes que recebem duas contas como argumento
-	contaComDigito1: .space 9
-	contaComDigito2: .space 9
+	contaComDigito1: .space 9	# Para receber a primeira conta de um comando com 2 contas
+	contaComDigito2: .space 9	# Para receber a segunda conta de um comando com 2 contas
+	contaAtual1: .space 9		# Para comparar no vetor de clientes, se o clienteAtual1 eh igual ao contaComDigito1
+	contaAtual2: .space 9		# Para comparar no vetor de clientes, se o clienteAtual2 eh igual ao contaComDigito2
 	
 	# Para funcoes que recebem apenas uma conta como argumento
-   	contaComDigito: .space 8 
+   	contaComDigito: .space 9	# Para receber a conta de um comando
+   	contaAtual: .space 9		# Para comparar no vetor de clientes, se o clienteAtual eh igual a contaComDigito
    	
    	# Para funcoes que recebem valor como argumento
    	valor: .space 6
@@ -145,42 +145,49 @@
 
 	main:
     		# Inicializacao de variaveis
-    		li $s0, 0          # $s0 = numClientes
-    		la $s1, cliente0   # $s1 = endereco do cliente0
+    		li $s0, 0          	# $s0 = numClientes
+    		la $s1, cliente0   	# $s1 = endereco do cliente0
+    		lw $s2, MAX_CLIENTES	# $s2 = 50 (num Max de clientes)
 
-    		li $v0, 4	# Codigo do syscall para imprimir uma string
-    		la $a0, COMANDO	# Carrega a string para pedir o input de comando
-    		syscall
-    		
-    		li $v0, 8		# Codigo do syscall para pegar input de uma string
-    		la $a0, input_string	# Endereco do espaco na memoria para guardar o input
-    		li $a1, 70		# Quantidade maxima de caracteres para serem lidos no input
-    		syscall
-    		
-    		jal decodificaInput	# Jump para funcao que decodifica o comando para saber o que fazer
-    		
-    		#pra testar se armazenou as informaÁıes mesmo
-    		li $v0, 4
-    		la $a0, contaComDigito1
-    		syscall
-    		
-    		li $v0, 4
-    		la $a0, contaComDigito2
-    		syscall
-    		
-    		li $v0, 4
-    		la $a0, valor
-    		syscall
-    		
-    		j exit
+		main_loop:		
+    			print_str(nomeBancoBanner)	# Imprime o banner "ArchBank-shel>> "
+
+   	 		li $v0, 8           	# Codigo do syscall para pegar input de uma string
+    			la $a0, input_string	# Endereco do espaco na memoria para guardar o input
+    			li $a1, 70		# Quantidade maxima de caracteres para serem lidos no input
+    			syscall
+
+			# Atualmente se o comando for "salvar" fecha o programa
+    			jal decodificaInput  # Jump para funcao que decodifica o comando para saber o que fazer
+
+			la $a0, stringComando
+			jal zerarString
+
+    			j main_loop	# Continua pedindo comandos ate que leia "salvar"
     	
-    	# Teste: conta_cadastrar-13967492419-100010-Marceline
-    	# transferir_debito-100010-X-000222-5-001000
+    	# Teste: 
+    	# conta_cadastrar-13967492419-100010-Marceline
+    	# conta_cadastrar-98765432101-000222-Robson
+    	# conta_format-10010-X
+    	# debito_extrato-10010-X
+    	# credito_extrato-10010-X
+    	# transferir_debito-100010-X-000222-7-001000
+    	# transferir_credito-100010-X-000222-7-001000
+    	# pagar_fatura-100010-X-001000-S
+    	# sacar-100010-X-002000
+    	# depositar-100010-X-010000
+    	# alterar_limite-100010-X-333333
+    	# alterar_limite-000222-7-777777
+    	# conta_fechar-000222-7
+    	# data_hora-DDMMAAAA-HHMMSS
+    	# salvar
+    	# recarregar
+    	# formatar
     	
     	decodificaInput: # Funcao para decodificar o input inserido pelo cliente
-    		move $t0, $a0 # Move o endereÁo de input_string para $t0
+    		move $t0, $a0 # Move o endereco de input_string para $t0
     		li $t1, '-' # Carrega o hifen em $t1
-    		la $t2, stringComando # Carrega o endereÁo da string a ser preenchida com o comando para ser comparado
+    		la $t2, stringComando # Carrega o endereco da string a ser preenchida com o comando para ser comparado
     	
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
@@ -252,7 +259,7 @@
     		la $a0, stringComando
     		la $a1, alterar_limite
     		jal strcmp
-    		# beq $v0, $zero, decodificaAlterarLimite
+    		beq $v0, $zero, decodificaAlterarLimite
     		
     		# Para verificar se È contar_fechar
     		la $a0, stringComando
@@ -268,30 +275,28 @@
     		
     		# Para verificar se È salvar
     		la $a0, stringComando
-    		la $a1, salvar
+    		la $a1, salvar_str
     		jal strcmp
-    		# beq $v0, $zero, salvar
+    		beq $v0, $zero, salvar
     		
     		# Para verificar se È recarregar
     		la $a0, stringComando
-    		la $a1, recarregar
+    		la $a1, recarregar_str
     		jal strcmp
     		# beq $v0, $zero, recarregar
     		
     		# Para verificar se È formatar
     		la $a0, stringComando
-    		la $a1, formatar
+    		la $a1, formatar_str
     		jal strcmp
     		# beq $v0, $zero, formatar
     		
     		# Para comando n„o existente
-    		li $v0, 4
-    		la $a0, COMANDO_NAO_EXISTE
+    		li $v0, 4			# Codigo do syscall para imprimir uma string
+    		la $a0, COMANDO_NAO_EXISTE	# Caso o comando nao exista, exibe a mensagem de comando invalido
     		syscall
     		
-    		# Volta pro inicio
-    		carregar_ra_pilha()
-    		jr $ra
+    		j fimFuncao	# Jump para fim da funcao, para retornar ao main
     	
     	decodificaCadastrarCliente: # Funcao para decodificar os atributos do cliente
     		li $a2, 11 # Num de bytes do cpf a serem copiados
@@ -362,9 +367,7 @@
     		la $a0, valor # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		# so pra testar, pode apagar
-    		carregar_ra_pilha()
-		jr $ra
+    		j transferirDebito
     		
     	decodificaTransferirCredito:
 		# Pra string da primeira conta
@@ -388,7 +391,7 @@
     		la $a0, valor # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		# j transferirCredito # FUNCAO AINDA NAO CRIADA 
+    		j transferirCredito
     		
     	decodificaPagarFatura:
     		li $a2, 8 # Num de bytes da conta a serem copiados
@@ -420,7 +423,7 @@
     		
     		li $a2, 6 # Num de bytes do valor a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 15 # EndereÁo do comeÁo do num da conta contido na string
+    		addi $a1, $a1, 15 # EndereÁo do comeÁo do valor contido na string
     		la $a0, valor # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
@@ -435,7 +438,7 @@
     		
     		li $a2, 6 # Num de bytes do valor a serem copiados
     		la $a1, input_string # Source de memcpy
-    		addi $a1, $a1, 19 # EndereÁo do comeÁo do num da conta contido na string
+    		addi $a1, $a1, 19 # EndereÁo do comeÁo do valor contido na string
     		la $a0, valor # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
@@ -448,7 +451,13 @@
     		la $a0, contaComDigito # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		# j alterarLimite
+    		li $a2, 6 # Num de bytes do valor a serem copiados
+    		la $a1, input_string # Source de memcpy
+    		addi $a1, $a1, 24 # EndereÁo do comeÁo do valor contido na string
+    		la $a0, valor # Destination de memcpy
+    		jal memcpy # Chama memcpy
+    		
+    		j alterarLimite
     		
     	decodificaContaFechar:
     		li $a2, 8 # Num de bytes da conta a serem copiados
@@ -528,112 +537,194 @@
     		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
     		
     		la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente (cliente[numClientes].conta[0])
-		jal print_numConta      # Chama a funcao para imprimir o numero da conta com o digito verificador	
+		jal print_numConta      # Chama a funcao para imprimir o numero da conta com o digito verificador
+		print_bl()		# Imprime uma quebra de linha	
 
     		# Incrementar numClientes
     		addi $s0, $s0, 1	# numClientes = numClientes + 1
 
-    		j fimFuncao
-	
-	verificar_limite:
-		lw $t2, MAX_CLIENTES
-   		bltz $t0, cliente_invalido
-   		bge $t0, $t2, cliente_invalido
-
-    		sll $t3, $t0, 6
-   		la $t4, cliente0
-    		add $t4, $t4, $t3
-
-   		lw $t5, 44($t4)  # Offset 44 corresponde √† posi√ß√£o do limite dentro do cliente
-
-   		# Exibe o limite do cliente
-    		li $v0, 4
-    		la $a0, msg_limite
-    		syscall
-
-    		li $v0, 1
-    		move $a0, $t5
-    		syscall
-
-    		jr $ra
+    		j fimFuncao	# Jump para fim da funcao, para retornar ao main
     		
-	alterar_limite:
-		li $v0, 4
-    		la $a0, msg_novo_limite
-    		syscall
+    	limiteAtingido:
+   		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data
 
-    		li $v0, 5
-    		syscall
-    		move $t1, $v0  # $t1 cont√©m o novo limite
+	transferirDebito:
+		# Cada cliente tem 64 bytes e È estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t3 = 50 (num Max de clientes)
+		
+		move $t4, $s1  	# Endereco para encontrar o cliente1
+		move $t5, $s1  	# Endereco para encontrar o cliente2
+    		lw $t3, MAX_CLIENTES	# $t3 = 50 (num Max de clientes)
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
+        	loop_contaCliente1:	# Loop para buscar um cliente pelo numero da conta
+        		
+        		beq $t3, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+        		la $a0, contaAtual1	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito1	# Carrega em $a0 a contaComDigito1, tirada do input
+    			la $a1, contaAtual1	# Carrega em $a1 a contaAtual1, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente1
+    			
+    			beqz $v0, loop_contaCliente2  # Se $v0 = 0, cliente1 foi encontrado, vai para loop_contaCliente2 buscar o cliente2
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o num da conta do proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
 
-    		lw $t2, MAX_CLIENTES
-    		bltz $t0, cliente_invalido
-    		bge $t0, $t2, cliente_invalido
+    			beq $s2, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaCliente1	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    			
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    			
+    		loop_contaCliente2:	# Loop para buscar outro cliente pelo numero da conta
+        		
+        		beq $t3, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+        		la $a0, contaAtual2	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t5)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito2	# Carrega em $a0 a contaComDigito2, tirada do input
+    			la $a1, contaAtual2	# Carrega em $a1 a contaAtual2, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente2
+    			
+    			beqz $v0, clientes_encontradosDebito  # Se $v0 = 0, pula para clientes_encontradosDebito
+    			
+    			addi $t5, $t5, 64	# Avanca 64 bytes para ir para o num da conta do proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
 
-    		sll $t3, $t0, 6
-    		la $t4, cliente0
-    		add $t4, $t4, $t3
+    			beq $s2, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaCliente2	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    		
+    		clientes_encontradosDebito:
+    		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
+    		
+    		# Agora eh necessario a funcao que converte de string pra int, para operar o limite e saldo dos clientes
+    			
+    		j fimFuncao
 
-    		sw $t1, 44($t4)  # Atualiza o limite
+	transferirCredito:	
+ 		# Cada cliente tem 64 bytes e È estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $s2 = 50 (num Max de clientes)
+		
+		move $t4, $s1  	# Endereco para encontrar o cliente1
+		move $t5, $s1  	# Endereco para encontrar o cliente2
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
+        	loop_contaCliente3:	# Loop para buscar um cliente pelo numero da conta
+        		
+        		beq $t3, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+        		la $a0, contaAtual1	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito1	# Carrega em $a0 a contaComDigito1, tirada do input
+    			la $a1, contaAtual1	# Carrega em $a1 a contaAtual1, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente1
+    			
+    			beqz $v0, loop_contaCliente4  # Se $v0 = 0, cliente1 foi encontrado, vai para loop_contaCliente4 buscar o cliente2
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o num da conta do proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
 
-    		jr $ra
+    			beq $s2, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaCliente3	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    			
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    			
+    		loop_contaCliente4:	# Loop para buscar outro cliente pelo numero da conta
+        		
+        		beq $t3, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+        		la $a0, contaAtual2	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t5)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito2	# Carrega em $a0 a contaComDigito2, tirada do input
+    			la $a1, contaAtual2	# Carrega em $a1 a contaAtual2, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente2
+    			
+    			beqz $v0, clientes_encontradosCredito  # Se $v0 = 0, pula para clientes_encontradosCredito
+    			
+    			addi $t5, $t5, 64	# Avanca 64 bytes para ir para o proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
 
-	realizar_pagamento:
-		li $v0, 4
-    		la $a0, PAGAMENTO_MSG
-    		syscall
+    			beq $s2, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaCliente4	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    		
+    		clientes_encontradosCredito:
+    		# Neste momento, em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
+    		
+    		# Agora eh necessario a funcao que converte de string pra int, para operar o limite e credito dos clientes
+    			
+    		j fimFuncao
+    		
+    	alterarLimite:
+		# Cada cliente tem 64 bytes e È estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $s2 = 50 (num Max de clientes)
+		
+		move $t4, $s1  	# Endereco para encontrar o cliente que vai ter o limite alterado
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
+        	loop_contaCliente:	# Loop para buscar um cliente pelo numero da conta
+        		
+        		
+        		la $a0, contaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito	# Carrega em $a0 a contaComDigito, tirada do input
+    			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
+    			
+    			beqz $v0, cliente_encontrado  # Se $v0 = 0, pula para label cliente_enconrtado
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
+						
+			beq $s2, $t6, cliente_invalido	# Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaCliente	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    		
+    		cliente_encontrado:
+    			# Neste momento, $t4 possui o valor do cliente que sera alterado o limite
+    			la $a0, 25($t4)	# Carrega em $a0 a posicao inicial do limite do cliente (cliente[numClientes].limite[0])
+    			la $a1, valor	# Carrega em #a1 o valor do limite digitado no input, que foi salvo na memoria
+    			la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valor"
+    			jal memcpy	# Chama a funcao memcpy	
 
-    		li $v0, 5
-    		syscall
-    		move $t2, $v0  # $t2 cont√©m o valor do pagamento
-
-    		li $v0, 4
-    		la $a0, ESCOLHER_PAGAMENTO_MSG
-    		syscall
-
-    		li $v0, 5
-    		syscall
-    		move $t3, $v0  # $t3 cont√©m a op√ß√£o: 0 para d√©bito, diferente de 0 para cr√©dito
-
-    		lw $t4, MAX_CLIENTES
-    		bltz $t0, cliente_invalido
-    		bge $t0, $t4, cliente_invalido
-
-    		sll $t5, $t0, 6
-    		la $t6, cliente0
-    		add $t6, $t6, $t5
-
-	    	lw $t7, 38($t6)  # ALTERAR PQ NAO SEI QUAL corresponde √† posi√ß√£o do saldo dentro do cliente
-    		lw $t8, 25($t6) 
-    		# Verifica se √© d√©bito
-    		beqz $t3, debito   # Se $t3 (op√ß√£o) √© zero, pula para a se√ß√£o de d√©bito
-    		# Se for cr√©dito, subtrai do limite
-    		sub $t8, $t8, $t2   # $t8 (limite) -= $t2 (valor do pagamento)
-    		b fim_pagamento
-
-	debito:
-   		# Se for d√©bito, subtrai do saldo
-    		sub $t7, $t7, $t2   # $t7 (saldo) -= $t2 (valor do pagamento)
-
-	fim_pagamento:
-    		sw $t7, 38($t6)  # Atualiza o saldo no cliente
-
-    		jr $ra
+			# Mensagem de sucesso  
+    			print_str(LIMITE_ALTERADO_MSG)  # $a0 = string para limite alterado, definida no .data
+    		
+    			la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente (cliente[numClientes].conta[0])
+			jal print_numConta      # Chama a funcao para imprimir o numero da conta com o digito verificador
+			print_bl()		# Imprime uma quebra de linha
+		
+			# Exibe o novo limite 
+			print_str(NOVO_LIMITE_MSG)  # $a0 = string para novo limite, definida no .data
+			print_str(valor)		# $a0 = valor do novo limite, apos alteracao
+			print_bl()		# Imprime uma quebra de linha
+		
+    		j fimFuncao	# Jump para fim da funcao, para retornar ao main
 
 	cliente_invalido:
-		li $v0, 4
-    		la $a0, CLIENTE_INVALIDO_MSG
+		li $v0, 4			# Codigo do syscall para imprimir uma string
+    		la $a0, CLIENTE_INVALIDO_MSG	# Caso o cliente nao exista, exibe a mensagem de cliente invalido
     		syscall
 
-    		jr $ra
-
-	limiteAtingido:
-    		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data 
-
+    		j fimFuncao
+	
 	fimFuncao:
-		carregar_ra_pilha()	# Carrega o $ra salvo na pilha, para voltar ao main
-    		jr $ra              # Retornar da funcao	   		        	
-        
+		carregar_ra_pilha()	# Carrega o $ra do main, salvo na pilha	
+    		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
+                     
+        salvar:
+        	j exit	# Jump para exit, para encerrar o programa
+        	
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
         	syscall
