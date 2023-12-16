@@ -1,8 +1,8 @@
 # Parametros -> $a0 - destination; $a1 - source; $v0 - result
-.globl strcpy
+.globl strcpy2
 
 .text
-	strcpy:		
+	strcpy2:		
  		move $t1, $a0	# Temporario para iterar entre os indices da string destination sem perder o endereco original
 		move $t2, $a1	# Temporario para iterar entre os indices da string source sem perder o endereco original
 		
