@@ -58,6 +58,10 @@
    	COMANDO_NAO_EXISTE: .asciiz "\nO comando inserido não existe, tente novamente.\n"
    	LIMITE_ALTERADO_MSG: .asciiz "\nLimite alterado com sucesso. Número da conta: "
    	NOVO_LIMITE_MSG: .asciiz "Novo limite: "
+   	CONTA_FECHADA_MSG: .asciiz "Conta fechada com sucesso" 
+   	CONTA_NAOZERADA_MSG: .asciiz "Falha: saldo devedor ainda não quitado.\n Saldo da conta corrente R$"
+	FATURA_NAOPAGA_MSG: .asciiz "Limite de crédito devido(fatura): R$ "
+   	CPF_INVALIDO_MSG: .asciiz "Falha: CPF não possui cadastro\n"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -90,6 +94,15 @@
    	# Para funcoes que recebem valor como argumento
    	valor: .space 6
    	
+   	#Conta atual do meu loop de buscar nos clientes
+   	cpfAtual: .space 12
+   	
+   	# Saldo atual do meu loop de buscar nos clientes
+   	saldoAtual: .space 6
+   	
+   	# fatura atual do meu loop de buscar nos clientes
+   	faturaAtual: .space 6
+
    	# Para selecao do metodo de pegamento da funcao para fatura
    	metodoPagamento: .space 1
    	
@@ -265,7 +278,7 @@
     		la $a0, stringComando
     		la $a1, conta_fechar
     		jal strcmp
-    		# beq $v0, $zero, decodificaContaFechar
+    		beq $v0, $zero, decodificaContaFechar
     		
     		# Para verificar se é data_hora
     		la $a0, stringComando
@@ -460,13 +473,13 @@
     		j alterarLimite
     		
     	decodificaContaFechar:
-    		li $a2, 8 # Num de bytes da conta a serem copiados
+    		li $a2, 11 # Num de bytes da conta a serem copiados
     		la $a1, input_string # Source de memcpy
     		addi $a1, $a1, 13 # Endereço do começo do num da conta contido na string
-    		la $a0, contaComDigito # Destination de memcpy
+    		la $a0, cpf # Destination de memcpy
     		jal memcpy # Chama memcpy
     		
-    		# j contaFechar FUNCAO AINDA NAO CRIADA
+    		j contaFechar
     		
     	decodificaDataHora:
     		li $a2, 8 # Num de bytes da data a serem copiados
@@ -710,14 +723,88 @@
 			print_bl()		# Imprime uma quebra de linha
 		
     		j fimFuncao	# Jump para fim da funcao, para retornar ao main
-
+    		
+        contaFechar:
+        	# Variaveis locais: $s1 = endereco do bloco de clientes
+    		move $t4, $s1  # Endereco dos clientes 
+    		li $t5, 0
+    		
+        	loop_cpfCliente:
+    			# Cada cliente tem 64 bytes e é estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+        		la $a0, cpfAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o CPF do cliente atual
+        		la $a1, 0($t4)		# Carrega em #a1 a posicao inicial do cpf do cliente atual
+        		la $a2, 11	# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy	# Chama memcpy // copita até um byte específico, nesse caso 11
+		
+			la $a0, cpf
+    			la $a1, cpfAtual
+    			jal strcmp
+    			
+    			beqz $v0, verificaSaldo  # Se $v0 = 0, pula para label verificaSaldo
+    			
+    			addi $t4, $t4, 64
+    			addi $t5, $t5, 1
+			
+			beq $s2, $t5, erro_Cpf #contador para verificar se já passou por todos os clientes e da erro, caso nao encontradro
+    			bnez $v0, loop_cpfCliente # Compara se o $v0 é diferente de 0. Se for, continua o loop.
+    		
+    		verificaSaldo:
+    			la $a0, saldoAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o saldo do cliente atual
+        		la $a1,19($t4)	# Carrega em #a1 a posicao inicial do saldo da conta do cliente atual
+        		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy	# Chama memcpy // copita ate um byte especifico, nesse caso 5
+    			
+    			la $a0, saldo
+    			la $a1, saldoAtual
+    			jal strcmp
+    			
+    			bnez $v0, conta_NaoZerada
+    			
+    		verificaFatura:
+    			la $a0, faturaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar a fatura do cliente atual
+        		la $a1, 31($t4)	# Carrega em #a1 a posicao inicial da fatura da conta do cliente atual
+        		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy	# Chama memcpy // copita até um byte específico, nesse caso 5
+    			
+    			la $a0, fatura # Carrega em $a0 a string da minha fatura exemplo da memoria 
+    			la $a1, faturaAtual # Carrega em $a0 a string da fatura copiada
+    			jal strcmp # Faz a comparacao entre fatura atual e fatura
+    		
+    			bnez $v0, conta_NaoZerada # Se a compracao nao for igual, $v0 != de 0, exception 
+    		
+    		print_str(CONTA_FECHADA_MSG)
+    
+    		la $a0, 0($t4) # Carrega em $a0 a posicao inicial do meu cliente a ser zerado
+    		#jal zerarString # Chama a funcao zerar string
+    		
+    		j fimFuncao
+	
 	cliente_invalido:
 		li $v0, 4			# Codigo do syscall para imprimir uma string
     		la $a0, CLIENTE_INVALIDO_MSG	# Caso o cliente nao exista, exibe a mensagem de cliente invalido
     		syscall
 
     		j fimFuncao
-	
+
+   	
+	conta_NaoZerada:
+    		print_str(CONTA_NAOZERADA_MSG) 	# Endereço da string de aviso
+    		la $a0, 19($t4)		# Carrega em $a0 a posicao inicial do saldo do cliente (cliente[numClientes].saldo[0])
+		jal print_valor     	# Chama a funcao para imprimir um valor
+		print_bl()		# Imprime uma quebra de linha
+		
+		print_str(FATURA_NAOPAGA_MSG)  # $a0 = string para a fatura nao paga, definida no .data
+		la $a0, 31($t4)		# Carrega em $a0 a posicao inicial da fatura do cliente (cliente[numClientes].fatura[0])
+		jal print_valor     	# Chama a funcao para imprimir um valor
+		print_bl()		# Imprime uma quebra de linha
+			
+    		j fimFuncao
+    		
+    	erro_Cpf:
+
+    		print_str(CPF_INVALIDO_MSG) 	# Endereço da string de aviso
+    		j fimFuncao
+    		
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra do main, salvo na pilha	
     		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
