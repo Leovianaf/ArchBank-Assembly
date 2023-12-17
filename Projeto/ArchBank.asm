@@ -70,7 +70,7 @@
    	transferir_debito: .asciiz "transferir_debito"
    	transferir_credito: .asciiz "transferir_credito"
    	pagar_fatura: .asciiz "pagar_fatura"
-   	sacar: .asciiz "sacar"
+   	sacar_: .asciiz "sacar" #tive q mudar pq tava dando conflito
    	depositar: .asciiz "depositar"
    	alterar_limite: .asciiz "alterar_limite"
    	conta_fechar: .asciiz "conta_fechar"
@@ -222,9 +222,9 @@
     		copiaComando:
     		lb $t3, 0($t0)  # Carrega byte por byte do comando em $t3
         	beq $t3, $t1, comparaComando  # Se encontrar o hifen, pula para a funcao comparaComando
-        	beq $t3, 10, comparaComando # Se encontrar uma quebra de linha tambÃ©m pula pra funcao comparaComando
-        	sb $t3, 0($t2) # Copia o byte em $t0 para o endereÃ§o em $t2
-        	addi $t2, $t2, 1 # Incrementa o endereco de stringComando para copiar o prÃ³ximo byte
+        	beq $t3, 10, comparaComando # Se encontrar uma quebra de linha também pula pra funcao comparaComando
+        	sb $t3, 0($t2) # Copia o byte em $t0 para o endereço em $t2
+        	addi $t2, $t2, 1 # Incrementa o endereco de stringComando para copiar o próximo byte
         	addi $t0, $t0, 1  # Incrementa o endereco do comando em $t0 para verificar o byte seguinte
         	j copiaComando
         	
@@ -275,9 +275,9 @@
     		
     		# Para verificar se eh sacar
     		la $a0, stringComando
-    		la $a1, sacar
+    		la $a1, sacar_
     		jal strcmp
-    		# beq $v0, $zero, decodificaSacar
+    		beq $v0, $zero, decodificaSacar
     		
     		# Para verificar se eh depositar
     		la $a0, stringComando
@@ -403,7 +403,15 @@
 		# Pra string da primeira conta
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
     		la $a1, input_string 	# Source de memcpy
+<<<<<<< Updated upstream
     		addi $a1, $a1, 19 	# EndereÃ§o do comeÃ§o do primeiro num da conta contido na string
+=======
+<<<<<<< HEAD
+    		addi $a1, $a1, 19 	# Endereço do começo do primeiro num da conta contido na string
+=======
+    		addi $a1, $a1, 19 	# EndereÃ§o do comeÃ§o do primeiro num da conta contido na string
+>>>>>>> 8f760aba3251ea4a6550dc36887869d6fc4f1519
+>>>>>>> Stashed changes
     		la $a0, contaComDigito1 # Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
@@ -457,7 +465,7 @@
     		la $a0, valor 		# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j sacar FUNCAO AINDA NAO CRIADA
+    		j sacar 
     		
 	decodificaDepositar:
 		li $a2, 8 		# Num de bytes da conta a serem copiados
@@ -739,11 +747,11 @@
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
         	loop_cpfCliente:
-    			# Cada cliente tem 64 bytes e Ã© estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+    			# Cada cliente tem 64 bytes e é estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
         		la $a0, cpfAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o CPF do cliente atual
         		la $a1, 0($t4)		# Carrega em #a1 a posicao inicial do cpf do cliente atual
         		la $a2, 11	# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
-        		jal memcpy	# Chama memcpy // copita atÃ© um byte especÃ­fico, nesse caso 11
+        		jal memcpy	# Chama memcpy // copita até um byte específico, nesse caso 11
 		
 			la $a0, cpf		# Carrega em $a0 o cpf, tirado do input
     			la $a1, cpfAtual	# Carrega em $a1 o cpfAtual, para verificar se o cpf eh igual ao do input
@@ -775,7 +783,7 @@
     			la $a0, faturaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar a fatura do cliente atual
         		la $a1, 31($t4)	# Carrega em #a1 a posicao inicial da fatura da conta do cliente atual
         		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
-        		jal memcpy	# Chama memcpy // copita atÃ© um byte especÃ­fico, nesse caso 5
+        		jal memcpy	# Chama memcpy // copita até um byte específico, nesse caso 5
     			
     			la $a0, fatura 		# Carrega em $a0 a string da minha fatura exemplo da memoria 
     			la $a1, faturaAtual 	# Carrega em $a0 a string da fatura copiada
@@ -792,6 +800,74 @@
     			jal zerarString 	# Chama a funcao zerar string
     		
     		j fimFuncao
+    		
+    	# FUNCAO PRA SACAR !!
+    	sacar: 
+    		move $t4, $s1 # endereço dos clientes
+    		li $t6, 0 # $t6 = 0, contador para saber se ja passou por todos os clientes
+    		loop_contaClienteSacar:	# Loop para buscar um cliente pelo numero da conta
+        		la $a0, contaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito	# Carrega em $a0 a contaComDigito, tirada do input
+    			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
+    			
+    			beqz $v0, conversao  # Se $v0 = 0, pula função de conversao
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
+						
+			beq $s2, $t6, cliente_invalido # Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaClienteSacar # Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    		
+    		conversao:
+    			li $t6, 0 # zerar $t6
+    			addi $t4, $t4, 24 # posicao do ultimo byte do saldo da conta
+    			move $t5, $t4 # move endereco pra $t5
+    			# conversao
+			li $t1, 1 # pras bases decimais
+			li $t0, 0 # pra acumular o inteiro final na conversao de saldo
+			li $t9, 0 # pra acumular o inteiro final na conversao de valor
+			li $t7, 10 # valor 10
+			# pra contar os bytes percorridos, pra condicao de parada do loop
+			li $t3, 7
+			li $t4, 1
+			
+			# endereco do ultimo byte da string de valor
+			la $t8, valor
+			addi $t8, $t8, 6
+	
+			convertSaldo:
+				beq $t4, $t3, convertValor # se terminou a conversao da string do saldo vai pra conversao da string do valor
+				lb $t6, 0($t5)	# carrega um byte do saldo em $t6
+				addi $t6, $t6, -48 # converte pra inteiro
+				mul $t2, $t6, $t1 # multiplica o inteiro pela base decimal correspondente e guarda resultado em $t2
+				add $t0, $t0, $t2 # pra acumular os valores em $t0
+				mul $t1, $t1, $t7 # multiplica $t1 por 10 pra ir atualizando as bases
+				addi $t4, $t4, 1 # incrementa o contador
+				addi $t5, $t5, -1 # decrementa o endereço
+				j convertSaldo
+		
+			convertValor:
+				beq $t4, $t7, subtrairDaConta # se terminou a conversao vai pra funcao final que realmente faz o saque
+				lb $t6, 0($t8)	# carrega um byte do saldo em $t6
+				addi $t6, $t6, -48 # converte pra inteiro
+				mul $t2, $t6, $t1 # multiplica o inteiro pela base decimal correspondente e guarda resultado em $t2
+				add $t9, $t9, $t2 # pra acumular os valores em $t9
+				mul $t1, $t1, $t7 # multiplica $t1 por 10 pra ir atualizando as bases
+				addi $t4, $t4, 1 # incrementa o contador
+				addi $t8, $t8, -1 # decrementa o endereço
+				j convertValor
+				
+			subtrairDaConta:
+				bgt $t9, $t0, cliente_invalido # se o valor inserido for maior que o saldo, erro
+				sub $t1, $t0, $t9 # subtrai o valor do saldo
+				# converter de inteiro pra string e copiar o a string convertida no saldo da conta
+				carregar_ra_pilha()
+				jr $ra
 	
 	cliente_invalido:
     		print_str(CLIENTE_INVALIDO_MSG)
@@ -813,8 +889,20 @@
     		j fimFuncao
     		
     	erro_Cpf:  		
+<<<<<<< Updated upstream
     		print_str(CPF_INVALIDO_MSG) 	# EndereÃ§o da string de aviso
     		j fimFuncao
+=======
+<<<<<<< HEAD
+    		print_str(CPF_INVALIDO_MSG) 	# Endereço da string de aviso
+    		j fimFuncao
+    		
+				
+=======
+    		print_str(CPF_INVALIDO_MSG) 	# EndereÃ§o da string de aviso
+    		j fimFuncao
+>>>>>>> 8f760aba3251ea4a6550dc36887869d6fc4f1519
+>>>>>>> Stashed changes
 
 	#aumentar_segundo:
     		# Carrega a string de hora
@@ -887,4 +975,3 @@
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
         	syscall
-        
