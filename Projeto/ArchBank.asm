@@ -62,6 +62,10 @@
    	CONTA_NAOZERADA_MSG: .asciiz "\nFalha: cliente possui saldo, ou limite devedor ainda nao quitado.\nSaldo da conta corrente R$ "
 	FATURA_NAOPAGA_MSG: .asciiz "Limite de credito devido(fatura): R$ "
    	CPF_INVALIDO_MSG: .asciiz "Falha: CPF nao possui cadastro\n"
+   	VALOR_MAIOR_SALDO_MSG: .asciiz "\nErro: O valor informado eh maior que o saldo da conta\n"
+   	SAQUE_REALIZADO_MSG: .asciiz "\nSaque realizado com sucesso. Valor sacado: "
+   	DEPOSITO_REALIZADO_MSG: .asciiz "\n\Deposito realizado com sucesso. Valor depositado: "
+   	NOVO_SALDO_MSG: .asciiz "Novo saldo: "
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -70,8 +74,8 @@
    	transferir_debito: .asciiz "transferir_debito"
    	transferir_credito: .asciiz "transferir_credito"
    	pagar_fatura: .asciiz "pagar_fatura"
-   	sacar_: .asciiz "sacar" #tive q mudar pq tava dando conflito
-   	depositar: .asciiz "depositar"
+   	sacar_: .asciiz "sacar"
+   	depositar_: .asciiz "depositar"
    	alterar_limite: .asciiz "alterar_limite"
    	conta_fechar: .asciiz "conta_fechar"
    	data_hora: .asciiz "data_hora"
@@ -93,6 +97,7 @@
    	
    	# Para funcoes que recebem valor como argumento
    	valor: .space 6
+   	valorConvertido: .space 6
    	
    	#Conta atual do meu loop de buscar nos clientes
    	cpfAtual: .space 12
@@ -281,9 +286,9 @@
     		
     		# Para verificar se eh depositar
     		la $a0, stringComando
-    		la $a1, depositar
+    		la $a1, depositar_
     		jal strcmp
-    		# beq $v0, $zero, decodificaDepositar
+    		beq $v0, $zero, decodificaDepositar
     		
     		# Para verificar se eh alterar_limite
     		la $a0, stringComando
@@ -403,15 +408,7 @@
 		# Pra string da primeira conta
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
     		la $a1, input_string 	# Source de memcpy
-<<<<<<< Updated upstream
-    		addi $a1, $a1, 19 	# EndereÃ§o do comeÃ§o do primeiro num da conta contido na string
-=======
-<<<<<<< HEAD
-    		addi $a1, $a1, 19 	# Endereço do começo do primeiro num da conta contido na string
-=======
-    		addi $a1, $a1, 19 	# EndereÃ§o do comeÃ§o do primeiro num da conta contido na string
->>>>>>> 8f760aba3251ea4a6550dc36887869d6fc4f1519
->>>>>>> Stashed changes
+    		addi $a1, $a1, 19 	# Endereco do começo do primeiro num da conta contido na string
     		la $a0, contaComDigito1 # Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
@@ -480,7 +477,7 @@
     		la $a0, valor 		# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j depositar FUNCAO AINDA NAO CRIADA
+    		j depositar
     		
     	decodificaAlterarLimite:
     		li $a2, 8 		# Num de bytes da conta a serem copiados
@@ -734,7 +731,7 @@
 		
 			# Exibe o novo limite 
 			print_str(NOVO_LIMITE_MSG)  # $a0 = string para novo limite, definida no .data
-			print_str(valor)		# $a0 = valor do novo limite, apos alteracao
+			print_str(valor)	# $a0 = valor do novo limite, apos alteracao
 			print_bl()		# Imprime uma quebra de linha
 		
     		j fimFuncao	# Jump para fim da funcao, para retornar ao main
@@ -801,10 +798,12 @@
     		
     		j fimFuncao
     		
-    	# FUNCAO PRA SACAR !!
-    	sacar: 
+    	sacar:
+    		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $s2 = 50 (num Max de clientes) ; $s6 = saldo convertido ; $s7 = valor convertido
     		move $t4, $s1 # endereço dos clientes
     		li $t6, 0 # $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
     		loop_contaClienteSacar:	# Loop para buscar um cliente pelo numero da conta
         		la $a0, contaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
         		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
@@ -815,65 +814,122 @@
     			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
     			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
     			
-    			beqz $v0, conversao  # Se $v0 = 0, pula função de conversao
+    			beqz $v0, conversaoSaldoValor  # Se $v0 = 0, pula função de conversaoSaldoValor
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
+						
+			beq $s2, $t6, cliente_invalido  # Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaClienteSacar 	# Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    		
+    		conversaoSaldoValor:
+    			# Neste momento, $t4 possui o valor do cliente que sera alterado o limite
+    			la $a0, 24($t4)	# Carrega em $a0 a posicao do ultimo byte do saldo da conta do cliente atual   		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do saldo convertido
+			
+			la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
+    			addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s7, $v0	# Carrega em $s7 o valor a ser sacado convertido
+				
+		subtrairDaConta:
+			bgt $s7, $s6, valor_maiorSaldo 	# Verifica se o valor eh maior que o saldo, se for, vai para erro
+			sub $t1, $s6, $s7 	# Subtrai o valor do saldo e armazena em $t1
+			
+			move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
+			la $a1, valorConvertido # Carrega em $a0 o endereco o numero, para converter para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 19($t4)		# Carrega em $a0 a posicao inicial do saldo do cliente (cliente[numClientes].saldo[0])
+    			la $a1, valorConvertido	# Carrega em #a1 o valor convertido pra string, que foi salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy	
+
+			# Mensagem de sucesso  
+    			print_str(SAQUE_REALIZADO_MSG)  # $a0 = string para limite alterado, definida no .data
+    			print_int($s7)		# $a0 = valor do saque
+			print_bl()		# Imprime uma quebra de linha
+		
+			# Exibe o novo saldo 
+			print_str(NOVO_SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
+			print_str(valorConvertido) # $a0 = valor do novo saldo, apos alteracao
+			print_bl()		   # Imprime uma quebra de linha
+					
+		j fimFuncao
+	
+	depositar:
+    		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $s2 = 50 (num Max de clientes) ; $s6 = saldo convertido ; $s7 = valor convertido
+    		move $t4, $s1 # endereço dos clientes
+    		li $t6, 0 # $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
+    		loop_contaClienteDepositar:	# Loop para buscar um cliente pelo numero da conta
+        		la $a0, contaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em #a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito	# Carrega em $a0 a contaComDigito, tirada do input
+    			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
+    			
+    			beqz $v0, conversaoSaldoValor2  # Se $v0 = 0, pula função de conversaoSaldoValor
     			
     			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
     			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
 						
 			beq $s2, $t6, cliente_invalido # Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
-    			j loop_contaClienteSacar # Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+    			j loop_contaClienteDepositar   # Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
     		
-    		conversao:
-    			li $t6, 0 # zerar $t6
-    			addi $t4, $t4, 24 # posicao do ultimo byte do saldo da conta
-    			move $t5, $t4 # move endereco pra $t5
-    			# conversao
-			li $t1, 1 # pras bases decimais
-			li $t0, 0 # pra acumular o inteiro final na conversao de saldo
-			li $t9, 0 # pra acumular o inteiro final na conversao de valor
-			li $t7, 10 # valor 10
-			# pra contar os bytes percorridos, pra condicao de parada do loop
-			li $t3, 7
-			li $t4, 1
-			
-			# endereco do ultimo byte da string de valor
-			la $t8, valor
-			addi $t8, $t8, 6
-	
-			convertSaldo:
-				beq $t4, $t3, convertValor # se terminou a conversao da string do saldo vai pra conversao da string do valor
-				lb $t6, 0($t5)	# carrega um byte do saldo em $t6
-				addi $t6, $t6, -48 # converte pra inteiro
-				mul $t2, $t6, $t1 # multiplica o inteiro pela base decimal correspondente e guarda resultado em $t2
-				add $t0, $t0, $t2 # pra acumular os valores em $t0
-				mul $t1, $t1, $t7 # multiplica $t1 por 10 pra ir atualizando as bases
-				addi $t4, $t4, 1 # incrementa o contador
-				addi $t5, $t5, -1 # decrementa o endereço
-				j convertSaldo
-		
-			convertValor:
-				beq $t4, $t7, subtrairDaConta # se terminou a conversao vai pra funcao final que realmente faz o saque
-				lb $t6, 0($t8)	# carrega um byte do saldo em $t6
-				addi $t6, $t6, -48 # converte pra inteiro
-				mul $t2, $t6, $t1 # multiplica o inteiro pela base decimal correspondente e guarda resultado em $t2
-				add $t9, $t9, $t2 # pra acumular os valores em $t9
-				mul $t1, $t1, $t7 # multiplica $t1 por 10 pra ir atualizando as bases
-				addi $t4, $t4, 1 # incrementa o contador
-				addi $t8, $t8, -1 # decrementa o endereço
-				j convertValor
+    		conversaoSaldoValor2:
+    			# Neste momento, $t4 possui o valor do cliente que sera alterado o limite
+    			la $a0, 24($t4)	# Carrega em $a0 a posicao do ultimo byte do saldo da conta do cliente atual   		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
 				
-			subtrairDaConta:
-				bgt $t9, $t0, cliente_invalido # se o valor inserido for maior que o saldo, erro
-				sub $t1, $t0, $t9 # subtrai o valor do saldo
-				# converter de inteiro pra string e copiar o a string convertida no saldo da conta
-				carregar_ra_pilha()
-				jr $ra
+			move $s6, $v0	# Carrega em $s6 o valor do saldo convertido
+			
+			la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
+    			addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s7, $v0	# Carrega em $s7 o valor a ser sacado convertido
+				
+		acrescentarNaConta:
+			add $t1, $s6, $s7 	# Adiciona o valor ao saldo e armazena em $t1
+			
+			move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
+			la $a1, valorConvertido # Carrega em $a0 o endereco o numero, para converter para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 19($t4)		# Carrega em $a0 a posicao inicial do saldo do cliente (cliente[numClientes].saldo[0])
+    			la $a1, valorConvertido	# Carrega em #a1 o valor convertido pra string, que foi salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy	
+
+			# Mensagem de sucesso  
+    			print_str(DEPOSITO_REALIZADO_MSG)  # $a0 = string para limite alterado, definida no .data
+    			print_int($s7)		# $a0 = valor do saque
+			print_bl()		# Imprime uma quebra de linha
+		
+			# Exibe o novo saldo 
+			print_str(NOVO_SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
+			print_str(valorConvertido) # $a0 = valor do novo saldo, apos alteracao
+			print_bl()		   # Imprime uma quebra de linha
+					
+		j fimFuncao
 	
 	cliente_invalido:
     		print_str(CLIENTE_INVALIDO_MSG)
 
     		j fimFuncao
 
+   	valor_maiorSaldo:
+   		print_str(VALOR_MAIOR_SALDO_MSG)
+
+    		j fimFuncao
    	
 	conta_NaoZerada:
     		print_str(CONTA_NAOZERADA_MSG) 	# Endereco da string de aviso
@@ -889,20 +945,9 @@
     		j fimFuncao
     		
     	erro_Cpf:  		
-<<<<<<< Updated upstream
-    		print_str(CPF_INVALIDO_MSG) 	# EndereÃ§o da string de aviso
+    		print_str(CPF_INVALIDO_MSG) 	# Endereco da string de aviso
     		j fimFuncao
-=======
-<<<<<<< HEAD
-    		print_str(CPF_INVALIDO_MSG) 	# Endereço da string de aviso
-    		j fimFuncao
-    		
-				
-=======
-    		print_str(CPF_INVALIDO_MSG) 	# EndereÃ§o da string de aviso
-    		j fimFuncao
->>>>>>> 8f760aba3251ea4a6550dc36887869d6fc4f1519
->>>>>>> Stashed changes
+    					
 
 	#aumentar_segundo:
     		# Carrega a string de hora
