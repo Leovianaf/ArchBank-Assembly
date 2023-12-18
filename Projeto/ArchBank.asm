@@ -51,6 +51,11 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
+    	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 32 bytes (1600 = 32 *50)
+    	extratos0: .space 1600 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
+    	extratos1: .space 1600
+    	extratos2: .space 1600
+    	
     	nomeBancoBanner: .asciiz "ArchBank-shell>> "
     	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Numero da conta: "
@@ -124,7 +129,16 @@
    	
    	# Para funcao dataHora
    	data: .space 8 # formato DDMMAAAA dia/mes/ano
-   	hora: .space 6 # formato HHMMSS hora/min/seg
+   	horario: .space 6 # formato HHMMSS hora/min/seg
+   	
+   	# Para usar na funcao dataHora
+   	dia: .space 3
+   	mes: .space 3
+   	ano: .space 5
+   	
+   	hora: .space 3
+   	minuto: .space 3
+   	segundo: .space 3
    	
    	# Pra armazenar apenas os comandos inseridos na input_string  	
  	stringComando: .space 20 
@@ -248,25 +262,8 @@
     		la $s1, cliente0   	# $s1 = endereco do cliente0
     		lw $s2, MAX_CLIENTES	# $s2 = 50 (num Max de clientes)
 
-		main_loop:		
-			#print_str(data)
-			
-   			#print_str("-")
-   			
-			#print_str(hora)	
-			
-			#li $v0, 4
-   			#la $a0, hifen #Imprime o hifen para separar a hora de "ArchBank-shell>>"
-   			#syscall
-   			
+		main_loop:		 			
     			print_str(nomeBancoBanner)	# Imprime o banner "ArchBank-shel>> "
-
-			#jal aumentar_segundo #Funcao para aumentar os segundos
-    			
-    			# Aguarda ate o proximo segundo usando syscall 32
-    			#li $v0, 32
-    			#li $a0, 1  # 1 segundo
-    			#syscall
 
    	 		li $v0, 8           	# Codigo do syscall para pegar input de uma string
     			la $a0, input_string	# Endereco do espaco na memoria para guardar o input
@@ -548,13 +545,12 @@
     		li $a2, 6 		# Num de bytes da hora a serem copiados
     		la $a1, input_string 	# Source de memcpy
     		addi $a1, $a1, 19 	# Endereco do comeco da data/hora contida na string
-    		la $a0, hora 		# Destination de memcpy
+    		la $a0, horario 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j dataHora
+    		j dataHora
 
 	cadastrarCliente:
-    		# Argumentos: $a0 = cpf, $a1 = conta, $a2 = nome
     		# Variaveis locais: $s0 = numClientes, $s1 = endereco do bloco de clientes ,  $s2 = MAX_CLIENTES
     		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 
@@ -1137,6 +1133,48 @@
     			
     			j fimFuncao
 	
+	dataHora:
+		li $a2, 2 		# Num de bytes do cpf a serem copiados
+    		la $a1, data 		# Source de memcpy
+    		addi $a1, $a1, 0 	# Endereco do comeco do cpf contido na string
+    		la $a0, dia 		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+    	
+    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
+    		la $a1, data 		# Source de memcpy
+    		addi $a1, $a1, 2 	# Endereco do comeco do numero da conta contido na string
+    		la $a0, mes		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+    	
+    		li $a2, 4 		# Num de bytes do numero da conta a serem copiados
+    		la $a1, data 		# Source de memcpy
+    		addi $a1, $a1, 4 	# Endereco do comeco do numero da conta contido na string
+    		la $a0, ano		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+    		
+    		li $a2, 2 		# Num de bytes do cpf a serem copiados
+    		la $a1, horario 	# Source de memcpy
+    		addi $a1, $a1, 0 	# Endereco do comeco do cpf contido na string
+    		la $a0, hora 		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+    	
+    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
+    		la $a1, horario 	# Source de memcpy
+    		addi $a1, $a1, 2 	# Endereco do comeco do numero da conta contido na string
+    		la $a0, minuto		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+    	
+    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
+    		la $a1, horario 	# Source de memcpy
+    		addi $a1, $a1, 4 	# Endereco do comeco do numero da conta contido na string
+    		la $a0, segundo		# Destination de memcpy
+    		jal memcpy 		# Chama memcpy
+		
+		# Falta chamar o syscall 30, para salvar o momento em que foi definida a data
+		
+		j fimFuncao
+	
+	# Exceptions / Erros possiveis
 	limiteAtingido:
    		print_str(LIMITE_ATINGIDO_MSG)  # $a0 = string para limite atingido, definida no .data
 	
@@ -1182,69 +1220,7 @@
     		
     	erro_Cpf:  		
     		print_str(CPF_INVALIDO_MSG) 	# Endereco da string de aviso
-    		j fimFuncao
-    					
-
-	#aumentar_segundo:
-    		# Carrega a string de hora
-    		#la $a0, hora
-
-    		# Carrega os segundos
-    		#lb $t0, 4($a0)   # Byte dos segundos
-    		# Converter de caractere para inteiro FAZER
-		
-    		# Incrementa os segundos
-    		#addi $t0, $t0, 1
-
-    		# Verifica se os segundos ultrapassaram 59
-    		# li $t1, 10        # 10 em ASCII
-    		# bge $t0, $t1, ajustar_minuto
-
-    		# Converte de inteiro para caractere FAZER (ou nao caso nao precise to pensando ainda)
-    		#sb $t0, 4($a0)    # Atualiza os segundos
-    		
-    		#j fimFuncao
-    		# jr $ra
-
-	#ajustar_minuto:
-    		# Carrega os minutos
-    		#lb $t2, 2($a0)   # Byte dos minutos
-
-    		# Incrementa os minutos
-    		#addi $t2, $t2, 1
-
-    		# Verifica se os minutos ultrapassaram 59
-    		#bge $t2, $t1, ajustar_hora
-
-
-    		#sb $t2, 2($a0)    # Atualiza os minutos
-    		#li $t0, 0       # Reseta os segundos para '0'
-    		#sb $t0, 4($a0)    # Atualiza os segundos
-    		#jr $ra
-
-	#ajustar_hora:
-    		# Carrega as horas
-    		#lb $t3, 0($a0)   # Byte das horas
-
-    		# Incrementa as horas
-    		#addi $t3, $t3, 1
-
-    		# Verifica se as horas ultrapassaram 23
-    		#bge $t3, $t1, hora_limite
-
-    		#sb $t3, 0($a0)    # Atualiza as horas
-    		#li $t2, 0       # Reseta os minutos para '0'
-    		#sb $t2, 2($a0)    # Atualiza os minutos
-    		#sb $t0, 4($a0)    # Atualiza os segundos
-    		#jr $ra
-
-		#hora_limite:
-    		# Se as horas ultrapassarem 23, reinicia para '00'
-    		#li $t3, '0'
-    		#sb $t3, 0($a0)    # Atualiza as horas
-    		#sb $t3, 2($a0)    # Atualiza os minutos
-    		#sb $t3, 4($a0)    # Atualiza os segundos
-    		#jr $ra
+    		j fimFuncao  					
 
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra do main, salvo na pilha	
