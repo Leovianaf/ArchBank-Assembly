@@ -57,21 +57,25 @@
    	CLIENTE_INVALIDO_MSG: .asciiz "\nNumero da conta do cliente invalido.\n"
    	COMANDO_NAO_EXISTE: .asciiz "\nO comando inserido nao existe, tente novamente.\n"
    	LIMITE_ALTERADO_MSG: .asciiz "\nLimite alterado com sucesso. Numero da conta: "
-   	NOVO_LIMITE_MSG: .asciiz "Novo limite: "
+   	LIMITE_MSG: .asciiz "Limite: "
    	CONTA_FECHADA_MSG: .asciiz "Conta fechada com sucesso\n" 
    	CONTA_NAOZERADA_MSG: .asciiz "\nFalha: cliente possui saldo, ou limite devedor ainda nao quitado.\nSaldo da conta corrente R$ "
 	FATURA_NAOPAGA_MSG: .asciiz "Limite de credito devido(fatura): R$ "
    	CPF_INVALIDO_MSG: .asciiz "Falha: CPF nao possui cadastro\n"
-   	VALOR_MAIOR_SALDO_MSG: .asciiz "\nErro: O valor informado eh maior que o saldo da conta\n"
    	SAQUE_REALIZADO_MSG: .asciiz "\nSaque realizado com sucesso. Valor sacado: "
    	DEPOSITO_REALIZADO_MSG: .asciiz "\n\Deposito realizado com sucesso. Valor depositado: "
-   	NOVO_SALDO_MSG: .asciiz "Novo saldo: "
-   	SALDO_INSUFICIENTE_MSG: .asciiz "\nErro: O cliente 2 não possui saldo suficiente\n"
+   	SALDO_MSG: .asciiz "Saldo: "
+   	SALDO_INSUFICIENTE_TRANSFERENCIA_MSG: .asciiz "\nErro: O cliente 2 não possui saldo suficiente\n"
+   	SALDO_INSUFICIENTE_MSG: .asciiz "\nErro: O cliente não possui saldo suficiente para pagamento da fatura\n"
    	TRANSFERENCIA_REALIZADA_D_MSG: .asciiz "\nTransferencia no debito realizada com sucesso. Valor transferido: "
    	TRANSFERENCIA_REALIZADA_C_MSG: .asciiz "\nTransferencia no credito realizada com sucesso. Valor transferido: "
    	TRANSFERIDO_DE_MSG: .asciiz "Transferido de: "
    	TRANSFERIDO_PARA_MSG: .asciiz "Transferido para: "
    	LIMITE_INSUFICIENTE_MSG: .asciiz "\nErro: O cliente 2 não possui limite suficiente\n"
+   	PAGAMENTO_REALIZADO_S_MSG: .asciiz "\nPagamento de fatura no debito realizada com sucesso. Valor pago: "
+   	PAGAMENTO_REALIZADO_E_MSG: .asciiz "\nPagamento de fatura com valor externo realizada com sucesso. Valor pago: "
+   	FATURA_MSG: .asciiz "Fatura: "
+   	VALOR_SUPERIOR_FATURA: .asciiz "\nFalha: O valor fornecido é superior ao valor da fatura\n"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -112,10 +116,11 @@
    	saldoAtual: .space 7
    	
    	# fatura atual do meu loop de buscar nos clientes
-   	faturaAtual: .space 6
+   	faturaAtual: .space 7
 
    	# Para selecao do metodo de pegamento da funcao para fatura
-   	metodoPagamento: .space 1
+   	metodoPagamento: .space 2
+   	metodoPagmentoS: .asciiz "S"
    	
    	# Para funcao dataHora
    	data: .space 8 # formato DDMMAAAA dia/mes/ano
@@ -215,6 +220,7 @@
     	# transferir_debito-100010-X-000222-7-001000
     	# transferir_credito-100010-X-000222-7-001000
     	# pagar_fatura-100010-X-001000-S
+    	# pagar_fatura-100010-X-001500-E
     	# sacar-100010-X-002000
     	# depositar-100010-X-010000
     	# alterar_limite-100010-X-333333
@@ -438,7 +444,7 @@
     		li $a2, 8 		# Num de bytes da conta a serem copiados
     		la $a1, input_string 	# Source de memcpy
     		addi $a1, $a1, 13 	# Endereco do comeco do num da conta contido na string
-    		la $a0, contaComDigito1 # Destination de memcpy
+    		la $a0, contaComDigito # Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
     		li $a2, 6 		# Num de bytes do valor a serem copiados
@@ -453,7 +459,7 @@
     		la $a0, metodoPagamento # Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j pagarFatura
+    		j pagarFatura
     		
     	decodificaSacar:
     		li $a2, 8 		# Num de bytes da conta a serem copiados
@@ -591,7 +597,7 @@
 
 	transferirDebito:
 		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
-		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t3 = 50 (num Max de clientes)
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ;
 		
 		move $t4, $s1  	# Endereco para encontrar o cliente1
 		move $t5, $s1  	# Endereco para encontrar o cliente2
@@ -652,7 +658,7 @@
 				
 				move $s6, $v0	# Carrega em $s6 o valor do saldo convertido do cliente 2
 								
-				bgt $s7, $s6, saldo_insuficiente # Verifica se o valor eh maior que o saldo, se for, vai para erro
+				bgt $s7, $s6, saldo_insuficienteTransferencia # Verifica se o valor eh maior que o saldo, se for, vai para erro
 				sub $t1, $s6, $s7 	# Subtrai o valor do saldo do cliente 2 e armazena em $t1
 			
 				move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
@@ -853,7 +859,7 @@
 				print_bl()		# Imprime uma quebra de linha
 				
 				print_str(TRANSFERIDO_PARA_MSG) # $a0 = string para transferido de, definida no .data
-				la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente2
+				la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente1
 				jal print_numConta	# Chama a funcao para imprimir o numero da conta com o digito verificador		
 				print_bl()		# Imprime uma quebra de linha				    			
     			
@@ -899,7 +905,7 @@
 			print_bl()		# Imprime uma quebra de linha
 		
 			# Exibe o novo limite 
-			print_str(NOVO_LIMITE_MSG)  # $a0 = string para novo limite, definida no .data
+			print_str(LIMITE_MSG)  # $a0 = string para novo limite, definida no .data
 			print_str(valor)	# $a0 = valor do novo limite, apos alteracao
 			print_bl()		# Imprime uma quebra de linha
 		
@@ -1005,7 +1011,7 @@
 			move $s7, $v0	# Carrega em $s7 o valor a ser sacado convertido
 				
 		subtrairDaConta:
-			bgt $s7, $s6, valor_maiorSaldo 	# Verifica se o valor eh maior que o saldo, se for, vai para erro
+			bgt $s7, $s6, saldo_insuficiente	# Verifica se o valor eh maior que o saldo, se for, vai para erro
 			sub $t1, $s6, $s7 	# Subtrai o valor do saldo e armazena em $t1
 			
 			move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
@@ -1023,7 +1029,7 @@
 			print_bl()		# Imprime uma quebra de linha
 		
 			# Exibe o novo saldo 
-			print_str(NOVO_SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
+			print_str(SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
 			print_str(valorConvertido) # $a0 = valor do novo saldo, apos alteracao
 			print_bl()		   # Imprime uma quebra de linha
 					
@@ -1045,7 +1051,7 @@
     			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
     			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
     			
-    			beqz $v0, conversaoSaldoValor2  # Se $v0 = 0, pula função de conversaoSaldoValor
+    			beqz $v0, conversaoSaldoValor2  # Se $v0 = 0, pula função de , conversaoSaldoValor2
     			
     			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
     			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
@@ -1061,7 +1067,7 @@
 			move $s6, $v0	# Carrega em $s6 o valor do saldo convertido
 			
 			la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
-    			addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
+    			addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser depositado	
     			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
 				
 			move $s7, $v0	# Carrega em $s7 o valor a ser sacado convertido
@@ -1080,23 +1086,176 @@
 
 			# Mensagem de sucesso  
     			print_str(DEPOSITO_REALIZADO_MSG)  # $a0 = string para limite alterado, definida no .data
-    			print_int($s7)		# $a0 = valor do saque
+    			print_int($s7)		# $a0 = valor do deposito
 			print_bl()		# Imprime uma quebra de linha
 		
 			# Exibe o novo saldo 
-			print_str(NOVO_SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
+			print_str(SALDO_MSG)  # $a0 = string para novo saldo, definida no .data
 			print_str(valorConvertido) # $a0 = valor do novo saldo, apos alteracao
 			print_bl()		   # Imprime uma quebra de linha
 					
 		j fimFuncao
 	
+	pagarFatura:
+		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
+		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ;
+		
+		move $t4, $s1 	# endereço dos clientes
+    		li $t6, 0 	# $t6 = 0, contador para saber se ja passou por todos os clientes
+    		
+    		loop_contaClienteFatura:	# Loop para buscar um cliente pelo numero da conta
+        		la $a0, contaAtual	# Carrega em $a0 a posicao inicial do espaco na memoria para guardar o num da conta do cliente atual 1
+        		la $a1, 11($t4)		# Carrega em $a1 a posicao inicial do num da conta do cliente atual
+        		la $a2, 8		# Carrega em $a2 a quantidade de bytes a serem copiadas do cliente atual
+        		jal memcpy		# Chama memcpy
+		
+			la $a0, contaComDigito	# Carrega em $a0 a contaComDigito, tirada do input
+    			la $a1, contaAtual	# Carrega em $a1 a contaAtual, para verificar se o num da conta eh igual ao do input
+    			jal strcmp		# Compara as duas strings,  se forem iguais, achou o cliente
+    			
+    			beqz $v0, cliente_localizado  # Se $v0 = 0, pula função de cliente_localizado
+    			
+    			addi $t4, $t4, 64	# Avanca 64 bytes para ir para o proximo cliente
+    			addi $t6, $t6, 1	# Acrescenta 1 ao contador de clientes procurados
+						
+			beq $s2, $t6, cliente_invalido # Caso o contador chegue em 50 (maximo) = passou por todos e nao encontrou, ai vai para o erro
+    			j loop_contaClienteFatura  # Enquanto $v0 != 0 e o contador nao chegar a 50 clientes, continua procurando
+		
+		cliente_localizado:
+			# Neste momento, $t4 possui o valor do cliente que sera alterado a fatura e talvez saldo
+			la $a0, 36($t4)		# Carrega em $a0 a posicao do ultimo byte da fatura da conta do cliente		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+			move $s6, $v0		# Carrega em $s6 o valor do fatura convertido do cliente
+	
+			la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
+    			addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro	
+			move $s7, $v0	# Carrega em $s7 o valor a ser pago
+			
+			bgt $s7, $s6, erro_valorInserido	# Verifica se o valor eh maior que a fatura, se for vai para erro
+				
+			la $a0, metodoPagamento	# Carrega em $a0 o metodo de pagamento digitado no input, salvo na memoria
+			la $a1, metodoPagmentoS	# Carrega em $a1 o metodo de pagamento "S", salvo na memoria
+			jal strcmp		# Compara as duas strings
+			
+			beqz $v0, pagarFaturaSaldo	# Se forem iguais, o metodo eh saldo
+			
+			j pagarFaturaExterno	# Se nao forem iguais, o metodo eh pagamento externo
+			
+		pagarFaturaSaldo:
+			# Converte saldo para int, subtrai o valor do saldo, e converte o novo saldo para string
+			la $a0, 24($t4)	# Carrega em $a0 a posicao do ultimo byte do saldo da conta do cliente	    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do saldo convertido do cliente 
+			
+			bgt $s7, $s6, saldo_insuficiente # Verifica se o valor eh maior que o saldo, se for, vai para erro
+			sub $t1, $s6, $s7 	# Subtrai o valor do saldo do cliente e armazena em $t1
+						
+			move $a0, $t1		# Carrega em $a0 o numero do novo saldo, para converter para string					
+			la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo saldo convertido para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 19($t4)		# Carrega em $a0 a posicao inicial do saldo do cliente (cliente[numClientes].saldo[0])
+    			la $a1, valorConvertido	# Carrega em $a1 o valor do novo saldo que foi convertido pra string, salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			# Converte o limite para int, soma o valor ao limite, e converte o novo limite para string
+    			la $a0, 30($t4)	# Carrega em $a0 a posicao do ultimo byte do limite da conta do cliente		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do limite convertido do cliente 1
+				
+			add $t1, $s6, $s7 	# Adiciona o valor ao limite do cliente 1 e armazena em $t1
+				
+			move $a0, $t1		# Carrega em $a0 o numero do novo limite, para converter para string
+			la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo limite convertido para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 25($t4)		# Carrega em $a0 a posicao inicial do limite do cliente (cliente[numClientes].limite[0])
+    			la $a1, valorConvertido	# Carrega em $a1 o valor do novo limite que foi convertido pra string, salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy
+    				
+    			# Converte a fatura para int, subtrai o valor  da fatura, e converte nova fatura para string
+    			la $a0, 36($t4)	# Carrega em $a0 a posicao do ultimo byte da fatura da conta do cliente		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor da fatura convertido do cliente
+				
+			sub $t1, $s6, $s7 	# Subtrai o valor da fatura do cliente 1 e armazena em $t1
+				
+			move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
+			la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 31($t4)		# Carrega em $a0 a posicao inicial da fatura do cliente (cliente[numClientes].fatura[0])
+    			la $a1, valorConvertido	# Carrega em $a1 o valor da nova fatura que foi convertido pra string, salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			# Mensagem de sucesso  
+    			print_str(PAGAMENTO_REALIZADO_S_MSG)  # $a0 = string para pagamento realizado no debito, definida no .data
+    			print_int($s7)		# $a0 = valor do pagamento
+			print_bl()		# Imprime uma quebra de linha
+		
+			# Exibe o novo saldo 
+			print_str(FATURA_MSG)  # $a0 = string para fatura, definida no .data
+			print_str(valorConvertido) # $a0 = valor da nova fatura, apos o pagamento
+			print_bl()		   # Imprime uma quebra de linha
+    			
+    			j fimFuncao
+    				
+		pagarFaturaExterno:		
+			# Converte o limite para int, soma o valor ao limite, e converte o novo limite para string
+			la $a0, 30($t4)	# Carrega em $a0 a posicao do ultimo byte do limite da conta do cliente		    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do limite convertido do cliente
+				
+			add $t1, $s6, $s7 	# Adiciona o valor ao limite do cliente e armazena em $t1
+				
+			move $a0, $t1		# Carrega em $a0 o endereco o numero do novo limite, para converter para string
+			la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo limite convertido para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 25($t4)		# Carrega em $a0 a posicao inicial do limite do cliente (cliente[numClientes].limite[0])
+    			la $a1, valorConvertido	# Carrega em $a1 o valor do novo limite que foi convertido pra string, salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy
+    				
+    			# Converte a fatura para int, subtrai o valor  da fatura, e converte nova fatura para string
+    			la $a0, 36($t4)	# Carrega em $a0 a posicao do ultimo byte da fatura da conta do client	    			
+    			jal converte_string_int	# Jump para funcao que converte a string em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor da fatura convertido do cliente
+				
+			sub $t1, $s6, $s7 	# Subtrai o valor da fatura do cliente e armazena em $t1
+				
+			move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
+			la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
+			jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
+			
+    			la $a0, 31($t4)		# Carrega em $a0 a posicao inicial do limite do cliente (cliente[numClientes].fatura[0])
+    			la $a1, valorConvertido	# Carrega em $a1 o valor da nova fatura que foi convertido pra string, salvo na memoria
+    			la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			# Mensagem de sucesso  
+    			print_str(PAGAMENTO_REALIZADO_E_MSG)  # $a0 = string para pagamento realizado externo, definida no .data
+    			print_int($s7)		# $a0 = valor do pagamento
+			print_bl()		# Imprime uma quebra de linha
+		
+			# Exibe o novo saldo 
+			print_str(FATURA_MSG)  # $a0 = string para fatura, definida no .data
+			print_str(valorConvertido) # $a0 = valor da nova fatura, apos o pagamento
+			print_bl()		   # Imprime uma quebra de linha
+    			
+    			j fimFuncao
+	
 	cliente_invalido:
     		print_str(CLIENTE_INVALIDO_MSG)
-
-    		j fimFuncao
-
-   	valor_maiorSaldo:
-   		print_str(VALOR_MAIOR_SALDO_MSG)
 
     		j fimFuncao
    	
@@ -1104,6 +1263,16 @@
    		print_str(SALDO_INSUFICIENTE_MSG)
 
     		j fimFuncao
+    		
+    	saldo_insuficienteTransferencia:
+   		print_str(SALDO_INSUFICIENTE_TRANSFERENCIA_MSG)
+
+    		j fimFuncao
+   	
+   	erro_valorInserido:
+        	print_str(VALOR_SUPERIOR_FATURA)
+
+        	j fimFuncao
    	
    	limite_insuficiente:
    		print_str(LIMITE_INSUFICIENTE_MSG)
