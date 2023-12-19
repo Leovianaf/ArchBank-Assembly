@@ -416,7 +416,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
+    		j creditoExtrato
     	
     	decodificaTransferirDebito:
     		# Pra string da primeira conta
