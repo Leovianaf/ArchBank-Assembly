@@ -82,6 +82,7 @@
    	FATURA_MSG: .asciiz "Fatura: "
    	VALOR_SUPERIOR_FATURA_MSG: .asciiz "\nFalha: O valor fornecido é superior ao valor da fatura\n"
    	DATA_CONFIGURADA_MSG: .asciiz "\nData configurada com sucesso: "
+   	DATA_ATUAL_MSG: .asciiz "\nData atual: "
    	DATA_INVALIDA_MSG: .asciiz "\nErro: A data inserida eh invalida\n"
    	BARRA: .asciiz "/"
    	HIFEN: .asciiz "-"
@@ -817,6 +818,8 @@
     				la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
     				jal memcpy		# Chama a funcao memcpy   				
     				
+    				jal atualizar_hora	# Chama a funcao para definir a hora atual
+    				
     				# Mensagem de sucesso  
     				print_str(TRANSFERENCIA_REALIZADA_C_MSG)  # $a0 = string para transferencia realizada, definida no .data
     				print_int($s7)		# $a0 = valor da transferencia
@@ -1223,40 +1226,138 @@
 		
 		sub $s5, $t0, $s4	# Subtrai o tempo atual do tempo definido, para obter a diferenca em ms
 		
-		print_int($s5)
-		
-		# Agora converte o tempo e atualiza a string | 1000 ms = 1 s | 60000 ms = 1 min | 3600000 ms = 1 h | 86400000 ms = 1 dia | 2629800000 ms = 1 mes | 31557600000 ms = 1 ano
-		
-		#bge $s5, 1000, converteSegundos	# Verifica se tem 1000 ms, para converter para segundos
+		# Agora converte o tempo e atualiza a string | 1000 ms = 1 s | 60000 ms = 1 min | 3600000 ms = 1 h | 86400000 ms = 1 dia | 2629800000 ms = 1 mes | 31557600000 ms = 1 ano		
+		bge $s5, 1000, converteSegundos	# Verifica se tem 1000 ms, para converter para segundos
 		
 		converteSegundos:
-			#la $a0, segundo		# Carrega em $a0 o endereco da data
-    			#addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
-    			#jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+			guardar_ra_pilha()	# Salva o $ra para voltar a transferencia na pilha
+		
+			la $a0, segundo		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
 				
-			#move $s6, $v0	# Carrega em $s6 o valor dos segundos
+			move $s6, $v0	# Carrega em $s6 o valor do segundo definido na memoria
 			
-			#div $s5, $s5, 1000	# Divide por 1000, para saber quantos segundos adicionar
-			#mflo $t2	# Carrega o quociente, para adicionar esses segundos
+			div $s5, $s5, 1000	# Divide por 1000, para saber quantos segundos adicionar
+			mflo $t2	# Carrega o quociente, para adicionar esses segundos
 			
-			#add $s6, $s6, $t2	# Soma a data definida a quantidade de segundos que passaram	
-			#beqz $0, fim_conversao			
+			add $s6, $s6, $t2	# Soma a data definida a quantidade de segundos que passaram	
 			
-			#move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
-			#la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
-			#jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			bge $s6, 60, pegaResto_adicionaMinutos	# Se estourar 60 segundos, adiciona um minutos e salva o resto nos segundos
 			
-    			#la $a0, segundo		# Carrega em $a0 a posicao inicial do segundo
-    			#la $a1, dataConvertida	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
-    			#la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
-    			#jal memcpy		# Chama a funcao memcpy
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, segundo		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
     			
-    			#print_str(segundo)
+    			j fim_conversao
     			
-    		fim_conversao:   			
-    			print_bl()
-    			print_int($s6)
-			jr $ra
+    		pegaResto_adicionaMinutos:
+    			# Adiciona o resto da divisao, para alterar os segundos antes
+    			div $s6, $s6, 60	# Divide por 60, para saber quantos minutos adicionar
+			mflo $a3	# Carrega o quociente, para adicionar os minutos que ultrapassaram
+			mfhi $t2	# Carrega o resto, para adicionar os segundos que sobraram
+			
+			add $s6, $0, $t2	# Soma a data definida a quantidade de segundos que passaram
+				
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, segundo		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+			
+			# Adiciona o quociente da divisao, para alterar os minutos
+    			la $a0, minuto		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do minuto definido na memoria
+				
+			add $s6, $s6, $a3	# Soma a data definida a quantidade de minutos que passaram
+			
+			bge $s6, 60, pegaResto_adicionaHoras	# Se estourar 60 minutos, adiciona uma hora e salva o resto nos minutos	
+				
+			move $a0, $s6			# Carrega em $a0 o numero dos novos minutos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, minuto		# Carrega em $a0 a posicao inicial do minuto
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo minuto que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			j fim_conversao
+    			
+    		pegaResto_adicionaHoras:
+    			# Adiciona o resto da divisao, para alterar os minutos antes
+    			div $s6, $s6, 60	# Divide por 60, para saber quantas horas
+			mflo $a3	# Carrega o quociente, para adicionar as horas que ultrapassaram
+			mfhi $t2	# Carrega o resto, para adicionar os minutos que sobraram
+			
+			add $s6, $0, $t2	# Soma a data definida a quantidade de minutos que passaram
+			beqz $s6, adiciona1	# Se o quociente der 0, adiciona 1 para ser o minuto 01	
+					
+			j converteMinutos
+			
+			adiciona1:
+				addi $s6, $s6, 1	# Adiciona 1 aos minutos				
+			
+		converteMinutos:
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, minuto		# Carrega em $a0 a posicao inicial do minuto
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo minuto que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			# Adiciona o quociente da divisao, para alterar as horas
+    			la $a0, hora		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor da hora definida na memoria
+				
+			add $s6, $s6, $a3	# Soma a data definida a quantidade de horas que passaram
+			
+			# bge $s6, 24, pegaResto_adicionaDias	# Se estourar 24 horas, adiciona uma um dia e salva o resto nas horas	
+				
+			move $a0, $s6			# Carrega em $a0 o numero das novas horas, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, hora		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor da nova hora que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			j fim_conversao
+    			
+    		fim_conversao:   		
+    		  	# Exibe a data atual da transferencia
+			print_str(DATA_ATUAL_MSG)  # $a0 = string para fatura, definida no .data
+			print_str(dia)  # $a0 = string para fatura, definida no .data
+			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(mes)  # $a0 = string para fatura, definida no .data
+			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(ano) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(HIFEN) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(hora)  # $a0 = string para fatura, definida no .data
+			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+			print_str(minuto) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+			print_str(segundo) # $a0 = valor da nova fatura, apos o pagamento  	
+					   			
+    			carregar_ra_pilha()
+			jr $ra		
 	
 	# Exceptions / Erros possiveis
 	limiteAtingido:
