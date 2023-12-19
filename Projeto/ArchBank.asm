@@ -52,9 +52,9 @@
     	cliente49: .space 64
     	
     	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 32 bytes (1600 = 32 *50)
-    	extratos0: .space 1600 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
-    	extratos1: .space 1600
-    	extratos2: .space 1600
+    	extratos0: .space 1900 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
+    	extratos1: .space 1900
+    	extratos2: .space 1900
     	
     	nomeBancoBanner: .asciiz "ArchBank-shell>> "
     	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
@@ -111,6 +111,9 @@
 	contaComDigito2: .space 9	# Para receber a segunda conta de um comando com 2 contas
 	contaAtual1: .space 9		# Para comparar no vetor de clientes, se o clienteAtual1 eh igual ao contaComDigito1
 	contaAtual2: .space 9		# Para comparar no vetor de clientes, se o clienteAtual2 eh igual ao contaComDigito2
+	
+	tipoTransferencia_D: .asciiz "D" # Tipo Debito
+	tipoTransferencia_C: .asciiz "C" # Tipo Credito
 	
 	# Para funcoes que recebem apenas uma conta como argumento
    	contaComDigito: .space 9	# Para receber a conta de um comando
@@ -620,7 +623,7 @@
     		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "limite_inicial"
     		jal memcpy	# Chama a funcao memcpy
     		
-    		la $a0, 37($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
+    		la $a0, 39($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
     		la $a1, nome	# Carrega em $a1 o nome digitado pelo usuario, que estava na memoria
     		jal strcpy	# Chama a funcao memcpy
 
@@ -646,6 +649,15 @@
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
     		buscar_duas_contaCliente(contaComDigito1, contaAtual1, contaComDigito2, contaAtual2, conversao_Saldo_Fatura_Limite)  # Procura os 2 clientes pelo numero da conta, fornecendo os labels necessarios 		      	
+    		
+    		addi $sp, $sp, -16
+    		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
+    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
+    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
+    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
+    		la $t2, tipoTransferencia_D
+    		sw $t2, 12($sp)
+    		
     		
     		conversao_Saldo_Fatura_Limite:
     		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
@@ -726,10 +738,16 @@
 				la $a0, 11($t4)		# Carrega em $a0 a posicao inicial do numero da conta do cliente2
 				jal print_numConta	# Chama a funcao para imprimir o numero da conta com o digito verificador		
 				print_bl()		# Imprime uma quebra de linha
+				
+				j cadastrar_extrato
 				    			
-    		j fimFuncao
+    		
 
-	transferirCredito:	
+	transferirCredito:
+	
+		
+    		
+    			
  		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t6 = contador para buscar o cliente ; $s2 = 50 (num Max de clientes)
 		
@@ -738,7 +756,18 @@
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
     		buscar_duas_contaCliente(contaComDigito1, contaAtual1, contaComDigito2, contaAtual2, conversao_Limite1_Fatura1_Fatura2_Limite2)  # Procura os 2 clientes pelo numero da conta, fornecendo os labels necessarios
-
+    		
+    		addi $sp, $sp, -16
+		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
+    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
+    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
+    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
+    		la $t2, tipoTransferencia_C
+    		sw $t2, 12($sp)
+    		
+    		print_str(contaAtual2)
+    		
+    		
     		conversao_Limite1_Fatura1_Fatura2_Limite2:
     		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
     		# Tira do limite e acrescenta na fatura do cliente 2 e paga a fatura do cliente 1  							
@@ -836,7 +865,54 @@
 				jal print_numConta	# Chama a funcao para imprimir o numero da conta com o digito verificador		
 				print_bl()		# Imprime uma quebra de linha				    			
     			
-    		j fimFuncao
+    				j cadastrar_extrato
+    		
+    	cadastrar_extrato:
+    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
+    		
+    		la $a0, 38($t5)       # Carrega em $a0 o endereco do ultimo byte do contador de extratos          
+		jal converte_stringData_int    # Jump para funcao que converte a string em um inteiro
+		move $t6, $v0    # Carrega em $s6 o valor do contador convertido
+    		
+    		lw $t8, 12($sp) # Carrega o caracter do tipo
+    		lw $t0, 8($sp) # valor que foi transferido
+    		lw $t1, 4($sp) # num do cliente atual (contador)
+    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
+    		addi $sp, $sp, 16
+    		
+    		la $t3, extratos0 # endereco base do bloco de extrato
+    		mul $t4, $t1, 1900 # multiplica o numero do cliente x 1900 para obter o valor a ser somado para obter a base 
+    		add $t3, $t3, $t4 # soma ao endereco base do extrato, para obter a posicao incial de onde comeca o extrato do meu cliente x
+    	
+		
+		#bge $t6, $s2, #FALTA FAZER VERIFICA SE E 50
+		addi $t7, $t6, 38
+		add $t3, $t3, $t7 
+		
+		# Parametros -> $a0 - destination; $a1 - source; $a2 - num
+		
+		la $a0, 0($t3) # Conta que vai enviar
+		la $a1, 11($t5) 
+		li $a2, 8
+		jal memcpy
+		
+		la $a0, 8($t3) # Conta que vai receber
+		la $a1, contaAtual1
+		li $a2, 8
+		jal memcpy
+		
+		la $a0, 16($t3) 
+		la $a1, 0($s7)
+		li $a2, 6
+		jal memcpy
+		
+		lb $a0, 0($t8) 
+		sb $a0, 22($t3)
+		
+		
+		addi $t6, $t6, 1
+		j fimFuncao
+    		
     		
     	alterarLimite:
 		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
