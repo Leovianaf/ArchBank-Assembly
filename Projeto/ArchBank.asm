@@ -80,7 +80,13 @@
    	PAGAMENTO_REALIZADO_S_MSG: .asciiz "\nPagamento de fatura no debito realizada com sucesso. Valor pago: "
    	PAGAMENTO_REALIZADO_E_MSG: .asciiz "\nPagamento de fatura com valor externo realizada com sucesso. Valor pago: "
    	FATURA_MSG: .asciiz "Fatura: "
-   	VALOR_SUPERIOR_FATURA: .asciiz "\nFalha: O valor fornecido é superior ao valor da fatura\n"
+   	VALOR_SUPERIOR_FATURA_MSG: .asciiz "\nFalha: O valor fornecido é superior ao valor da fatura\n"
+   	DATA_CONFIGURADA_MSG: .asciiz "\nData configurada com sucesso: "
+   	DATA_ATUAL_MSG: .asciiz "\nData atual: "
+   	DATA_INVALIDA_MSG: .asciiz "\nErro: A data inserida eh invalida\n"
+   	BARRA: .asciiz "/"
+   	HIFEN: .asciiz "-"
+   	DOIS_PONTOS: .asciiz ":"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -128,8 +134,8 @@
    	metodoPagmentoS: .asciiz "S"
    	
    	# Para funcao dataHora
-   	data: .space 8 # formato DDMMAAAA dia/mes/ano
-   	horario: .space 6 # formato HHMMSS hora/min/seg
+   	data: .space 9 # formato DDMMAAAA dia/mes/ano
+   	horario: .space 7 # formato HHMMSS hora/min/seg
    	
    	# Para usar na funcao dataHora
    	dia: .space 3
@@ -139,6 +145,8 @@
    	hora: .space 3
    	minuto: .space 3
    	segundo: .space 3
+   	
+   	dataConvertida: .space 2
    	
    	# Pra armazenar apenas os comandos inseridos na input_string  	
  	stringComando: .space 20 
@@ -253,6 +261,24 @@
    	beq $v0, $zero, %decodificador	# Se $v0 é zero, pula para a função específica
 .end_macro
 
+.macro chama_memcpy_labels(%numBytes, %somaEndereco, %source, %destination)
+	li $a2, %numBytes	# Num de bytes a serem copiados
+    	la $a1, %source 	# Source de memcpy
+    	addi $a1, $a1, %somaEndereco # Endereco do comeco da string
+    	la $a0, %destination	# Destination de memcpy
+    	jal memcpy 		# Chama memcpy
+.end_macro
+
+.macro converte_verifica_data(%data, %limite)
+	la $a0, %data			# Carrega em $a0 o endereco da data
+    	addi $a0, $a0, 1		# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    	jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+	move $s6, $v0	# Carrega em $s6 o valor da data convertida
+
+	bgt $s6, %limite, data_invalida # Se a data for maior que o seu limite, vai para erro de data invalida
+.end_macro
+
 .text
     	.globl main
 
@@ -293,7 +319,7 @@
     	# alterar_limite-100010-X-333333
     	# alterar_limite-000222-7-777777
     	# conta_fechar-000222-7
-    	# data_hora-16092012-132000
+    	# data_hora-18122023-202122
     	# salvar
     	# recarregar
     	# formatar
@@ -640,7 +666,7 @@
 				bgt $s7, $s6, saldo_insuficienteTransferencia # Verifica se o valor eh maior que o saldo, se for, vai para erro
 				sub $t1, $s6, $s7 	# Subtrai o valor do saldo do cliente 2 e armazena em $t1
 			
-				move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo saldo convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -657,7 +683,7 @@
 				
 				add $t1, $s6, $s7 	# Adiciona o valor ao limite do cliente 1 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o endereco o numero do novo limite, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero do novo limite, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo limite convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -674,7 +700,7 @@
 				
 				sub $t1, $s6, $s7 	# Subtrai o valor da fatura do cliente 1 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -682,6 +708,8 @@
     				la $a1, valorConvertido	# Carrega em $a1 o valor da nova fatura que foi convertido pra string, salvo na memoria
     				la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
     				jal memcpy		# Chama a funcao memcpy   				
+    				
+    				jal atualizar_hora	# Chama a funcao para definir a hora atual
     				
     				# Mensagem de sucesso  
     				print_str(TRANSFERENCIA_REALIZADA_D_MSG)  # $a0 = string para transferencia realizada, definida no .data
@@ -730,7 +758,7 @@
 				bgt $s7, $s6, limite_insuficiente # Verifica se o valor eh maior que o limite, se for, vai para erro
 				sub $t1, $s6, $s7 	# Subtrai o valor do limite do cliente 2 e armazena em $t1
 			
-				move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo saldo convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -747,7 +775,7 @@
 				
 				add $t1, $s6, $s7 	# Adiciona o valor na fatura do cliente 2 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -764,7 +792,7 @@
 				
 				add $t1, $s6, $s7 	# Adiciona o valor ao limite do cliente 2 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o endereco o numero do novo limite, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero do novo limite, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo limite convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -781,7 +809,7 @@
 				
 				sub $t1, $s6, $s7 	# Subtrai o valor da fatura do cliente 1 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
+				move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -789,6 +817,8 @@
     				la $a1, valorConvertido	# Carrega em $a1 o valor da nova fatura que foi convertido pra string, salvo na memoria
     				la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
     				jal memcpy		# Chama a funcao memcpy   				
+    				
+    				jal atualizar_hora	# Chama a funcao para definir a hora atual
     				
     				# Mensagem de sucesso  
     				print_str(TRANSFERENCIA_REALIZADA_C_MSG)  # $a0 = string para transferencia realizada, definida no .data
@@ -1134,45 +1164,200 @@
     			j fimFuncao
 	
 	dataHora:
-		li $a2, 2 		# Num de bytes do cpf a serem copiados
-    		la $a1, data 		# Source de memcpy
-    		addi $a1, $a1, 0 	# Endereco do comeco do cpf contido na string
-    		la $a0, dia 		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
+		chama_memcpy_labels(2, 0, data, dia)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
     	
-    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
-    		la $a1, data 		# Source de memcpy
-    		addi $a1, $a1, 2 	# Endereco do comeco do numero da conta contido na string
-    		la $a0, mes		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
+    		chama_memcpy_labels(2, 2, data, mes)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
     	
-    		li $a2, 4 		# Num de bytes do numero da conta a serem copiados
-    		la $a1, data 		# Source de memcpy
-    		addi $a1, $a1, 4 	# Endereco do comeco do numero da conta contido na string
-    		la $a0, ano		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
+    		chama_memcpy_labels(4, 4, data, ano)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
     		
-    		li $a2, 2 		# Num de bytes do cpf a serem copiados
-    		la $a1, horario 	# Source de memcpy
-    		addi $a1, $a1, 0 	# Endereco do comeco do cpf contido na string
-    		la $a0, hora 		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
+    		chama_memcpy_labels(2, 0, horario, hora) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
     	
-    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
-    		la $a1, horario 	# Source de memcpy
-    		addi $a1, $a1, 2 	# Endereco do comeco do numero da conta contido na string
-    		la $a0, minuto		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
-    	
-    		li $a2, 2 		# Num de bytes do numero da conta a serem copiados
-    		la $a1, horario 	# Source de memcpy
-    		addi $a1, $a1, 4 	# Endereco do comeco do numero da conta contido na string
-    		la $a0, segundo		# Destination de memcpy
-    		jal memcpy 		# Chama memcpy
+    		chama_memcpy_labels(2, 2, horario, minuto) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+
+    		chama_memcpy_labels(2, 4, horario, segundo) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
 		
-		# Falta chamar o syscall 30, para salvar o momento em que foi definida a data
+		verificando_valoresData:		
+			# Converte o dia para int e verifica se eh maior que 31
+			converte_verifica_data(dia, 31)
+			
+			# Converte o mes para int e verifica se eh maior que 12
+			converte_verifica_data(mes, 12)
+			
+			# Converte a hora para int e verifica se eh maior que 24
+			converte_verifica_data(hora, 24)
+			
+			# Converte o minuto para int e verifica se eh maior que 59
+			converte_verifica_data(minuto, 59)
+			
+			# Converte o segundo para int e verifica se eh maior que 59
+			converte_verifica_data(segundo, 59)
+				
+		# Como a data esta valida, darrega os ms da data atual do sistema
+		li $v0, 30	# Codigo do syscall para obter a data e hora atual (em milissegundos)
+		syscall
 		
+		move $s4, $a0	# Carrega em $s4 a parte menos significativa do tempo
+		# move $s5, $a1	# Carrega em $s5 a parte mais significativa do tempo
+		
+		# Exibe a data registrada
+		print_str(DATA_CONFIGURADA_MSG)  # $a0 = string para fatura, definida no .data
+		print_str(dia)  # $a0 = string para fatura, definida no .data
+		print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+		print_str(mes)  # $a0 = string para fatura, definida no .data
+		print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+		print_str(ano) # $a0 = valor da nova fatura, apos o pagamento
+		print_str(HIFEN) # $a0 = valor da nova fatura, apos o pagamento
+		print_str(hora)  # $a0 = string para fatura, definida no .data
+		print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+		print_str(minuto) # $a0 = valor da nova fatura, apos o pagamento
+		print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+		print_str(segundo) # $a0 = valor da nova fatura, apos o pagamento
+		print_bl()
+				
 		j fimFuncao
+	
+	atualizar_hora:
+		# Variaveis locais: $s4 = parte menos significativa do tempo da data definida
+		# Primeiro executa o syscall 30 para tirar a diferenca
+		li $v0, 30	# Codigo do syscall para obter a data e hora atual (em milissegundos)
+		syscall
+		
+		move $t0, $a0 	# Guarda em $t0 a parte menos significativa do tempo atual
+		
+		sub $s5, $t0, $s4	# Subtrai o tempo atual do tempo definido, para obter a diferenca em ms
+		
+		# Agora converte o tempo e atualiza a string | 1000 ms = 1 s | 60000 ms = 1 min | 3600000 ms = 1 h | 86400000 ms = 1 dia | 2629800000 ms = 1 mes | 31557600000 ms = 1 ano		
+		bge $s5, 1000, converteSegundos	# Verifica se tem 1000 ms, para converter para segundos
+		
+		converteSegundos:
+			guardar_ra_pilha()	# Salva o $ra para voltar a transferencia na pilha
+		
+			la $a0, segundo		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do segundo definido na memoria
+			
+			div $s5, $s5, 1000	# Divide por 1000, para saber quantos segundos adicionar
+			mflo $t2	# Carrega o quociente, para adicionar esses segundos
+			
+			add $s6, $s6, $t2	# Soma a data definida a quantidade de segundos que passaram	
+			
+			bge $s6, 60, pegaResto_adicionaMinutos	# Se estourar 60 segundos, adiciona um minutos e salva o resto nos segundos
+			
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, segundo		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			j fim_conversao
+    			
+    		pegaResto_adicionaMinutos:
+    			# Adiciona o resto da divisao, para alterar os segundos antes
+    			div $s6, $s6, 60	# Divide por 60, para saber quantos minutos adicionar
+			mflo $a3	# Carrega o quociente, para adicionar os minutos que ultrapassaram
+			mfhi $t2	# Carrega o resto, para adicionar os segundos que sobraram
+			
+			add $s6, $0, $t2	# Soma a data definida a quantidade de segundos que passaram
+				
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, segundo		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+			
+			# Adiciona o quociente da divisao, para alterar os minutos
+    			la $a0, minuto		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor do minuto definido na memoria
+				
+			add $s6, $s6, $a3	# Soma a data definida a quantidade de minutos que passaram
+			
+			bge $s6, 60, pegaResto_adicionaHoras	# Se estourar 60 minutos, adiciona uma hora e salva o resto nos minutos	
+				
+			move $a0, $s6			# Carrega em $a0 o numero dos novos minutos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, minuto		# Carrega em $a0 a posicao inicial do minuto
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo minuto que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			j fim_conversao
+    			
+    		pegaResto_adicionaHoras:
+    			# Adiciona o resto da divisao, para alterar os minutos antes
+    			div $s6, $s6, 60	# Divide por 60, para saber quantas horas
+			mflo $a3	# Carrega o quociente, para adicionar as horas que ultrapassaram
+			mfhi $t2	# Carrega o resto, para adicionar os minutos que sobraram
+			
+			add $s6, $0, $t2	# Soma a data definida a quantidade de minutos que passaram
+			beqz $s6, adiciona1	# Se o quociente der 0, adiciona 1 para ser o minuto 01	
+					
+			j converteMinutos
+			
+			adiciona1:
+				addi $s6, $s6, 1	# Adiciona 1 aos minutos				
+			
+		converteMinutos:
+			move $a0, $s6			# Carrega em $a0 o numero dos novos segundos, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, minuto		# Carrega em $a0 a posicao inicial do minuto
+    			la $a1, dataConvertida	# Carrega em $a1 o valor do novo minuto que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			# Adiciona o quociente da divisao, para alterar as horas
+    			la $a0, hora		# Carrega em $a0 o endereco da data
+    			addi $a0, $a0, 1	# Adiciona 1 ao endereco, para chegar ao ultimo byte    			
+    			jal converte_stringData_int	# Jump para funcao que converte a string de data em um inteiro
+				
+			move $s6, $v0	# Carrega em $s6 o valor da hora definida na memoria
+				
+			add $s6, $s6, $a3	# Soma a data definida a quantidade de horas que passaram
+			
+			# bge $s6, 24, pegaResto_adicionaDias	# Se estourar 24 horas, adiciona uma um dia e salva o resto nas horas	
+				
+			move $a0, $s6			# Carrega em $a0 o numero das novas horas, para converter para string
+			la $a1, dataConvertida 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+			jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+			
+    			la $a0, hora		# Carrega em $a0 a posicao inicial do segundo
+    			la $a1, dataConvertida	# Carrega em $a1 o valor da nova hora que foi convertido pra string, salvo na memoria
+    			la $a2, 2	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    			jal memcpy		# Chama a funcao memcpy
+    			
+    			j fim_conversao
+    			
+    		fim_conversao:   		
+    		  	# Exibe a data atual da transferencia
+			print_str(DATA_ATUAL_MSG)  # $a0 = string para fatura, definida no .data
+			print_str(dia)  # $a0 = string para fatura, definida no .data
+			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(mes)  # $a0 = string para fatura, definida no .data
+			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(ano) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(HIFEN) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(hora)  # $a0 = string para fatura, definida no .data
+			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+			print_str(minuto) # $a0 = valor da nova fatura, apos o pagamento
+			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
+			print_str(segundo) # $a0 = valor da nova fatura, apos o pagamento  	
+					   			
+    			carregar_ra_pilha()
+			jr $ra		
 	
 	# Exceptions / Erros possiveis
 	limiteAtingido:
@@ -1196,7 +1381,7 @@
     		j fimFuncao
    	
    	erro_valorInserido:
-        	print_str(VALOR_SUPERIOR_FATURA) # $a0 = string para valor superior a fatura, definida no .data
+        	print_str(VALOR_SUPERIOR_FATURA_MSG) # $a0 = string para valor superior a fatura, definida no .data
 
         	j fimFuncao
    	
@@ -1206,7 +1391,7 @@
     		j fimFuncao
    	
 	conta_NaoZerada:
-    		print_str(CONTA_NAOZERADA_MSG) 	# Endereco da string de aviso
+    		print_str(CONTA_NAOZERADA_MSG) 	# Endereco da string de conta nao zerada
     		la $a0, 19($t4)		# Carrega em $a0 a posicao inicial do saldo do cliente (cliente[numClientes].saldo[0])
 		jal print_valor     	# Chama a funcao para imprimir um valor
 		print_bl()		# Imprime uma quebra de linha
@@ -1219,9 +1404,13 @@
     		j fimFuncao
     		
     	erro_Cpf:  		
-    		print_str(CPF_INVALIDO_MSG) 	# Endereco da string de aviso
+    		print_str(CPF_INVALIDO_MSG) 	# Endereco da string de cpf invalido
     		j fimFuncao  					
 
+	data_invalida:  		
+    		print_str(DATA_INVALIDA_MSG) 	# Endereco da string de data invalida
+    		j fimFuncao  
+	
 	fimFuncao:
 		carregar_ra_pilha()	# Carrega o $ra do main, salvo na pilha	
     		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
