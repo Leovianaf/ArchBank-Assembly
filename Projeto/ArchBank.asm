@@ -52,9 +52,9 @@
     	cliente49: .space 64
     	
     	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 32 bytes (1600 = 32 *50)
-    	extratos0: .space 1600 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
-    	extratos1: .space 1600
-    	extratos2: .space 1600
+    	extratos0: .space 1900 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
+    	extratos1: .space 1900
+    	extratos2: .space 1900
     	
     	nomeBancoBanner: .asciiz "ArchBank-shell>> "
     	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
@@ -717,13 +717,8 @@
 
 	transferirCredito:
 	
-		addi $sp, $sp, -16
-    		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
-    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
-    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
-    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
-    		la $t2, tipoTransferencia_C
-    		sw $t2, 12($sp)
+		
+    		
     			
  		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t6 = contador para buscar o cliente ; $s2 = 50 (num Max de clientes)
@@ -733,7 +728,18 @@
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
     		buscar_duas_contaCliente(contaComDigito1, contaAtual1, contaComDigito2, contaAtual2, conversao_Limite1_Fatura1_Fatura2_Limite2)  # Procura os 2 clientes pelo numero da conta, fornecendo os labels necessarios
-
+    		
+    		addi $sp, $sp, -16
+		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
+    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
+    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
+    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
+    		la $t2, tipoTransferencia_C
+    		sw $t2, 12($sp)
+    		
+    		print_str(contaAtual2)
+    		
+    		
     		conversao_Limite1_Fatura1_Fatura2_Limite2:
     		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
     		# Tira do limite e acrescenta na fatura do cliente 2 e paga a fatura do cliente 1  							
@@ -832,16 +838,16 @@
     				j cadastrar_extrato
     		
     	cadastrar_extrato:
-    		lw $t2, 0($sp) # O endereco base do cliente que esta transferindo
+    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
     		
-    		la $a0, 38($t2)       # Carrega em $a0 o endereco do ultimo byte do contador de extratos          
+    		la $a0, 38($t5)       # Carrega em $a0 o endereco do ultimo byte do contador de extratos          
 		jal converte_stringData_int    # Jump para funcao que converte a string em um inteiro
 		move $t6, $v0    # Carrega em $s6 o valor do contador convertido
     		
     		lw $t8, 12($sp) # Carrega o caracter do tipo
     		lw $t0, 8($sp) # valor que foi transferido
     		lw $t1, 4($sp) # num do cliente atual (contador)
-    		lw $t2, 0($sp) # O endereco base do cliente que esta transferindo
+    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
     		addi $sp, $sp, 16
     		
     		la $t3, extratos0 # endereco base do bloco de extrato
@@ -856,7 +862,7 @@
 		# Parametros -> $a0 - destination; $a1 - source; $a2 - num
 		
 		la $a0, 0($t3) # Conta que vai enviar
-		la $a1, 11($t2)
+		la $a1, 11($t5) 
 		li $a2, 8
 		jal memcpy
 		
@@ -870,7 +876,7 @@
 		li $a2, 6
 		jal memcpy
 		
-		lb $a0, 0($t8)
+		lb $a0, 0($t8) 
 		sb $a0, 22($t3)
 		
 		

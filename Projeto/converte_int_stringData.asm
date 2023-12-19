@@ -8,7 +8,7 @@
     		# Variaveis necessarias
 		li $t1, 10 		# Valor 10 para ser dividido
 		la $t2, 0($a1)		# Pega o endereco de valorConvertido para colocar o numero convertido
-		addi $t2, $t2, 5	# Soma em $t2 a posicao do ultimo byte do endereco que vai salvar o valor a ser convertido				
+		addi $t2, $t2, 1	# Soma em $t2 a posicao do ultimo byte do endereco que vai salvar o valor a ser convertido				
 		
 		loop_divisao:
 			beq $t6, 2, fim_conversao # Se terminou a conversao do numero para todos os bytes, vai para fim da conversao
@@ -25,5 +25,5 @@
         		bnez $a0, loop_divisao  # Repete o loop se o quociente não for zero
 		
 		fim_conversao:
-			# Valor convertido foi salvo em "valorconvertido"
+			# Valor convertido foi salvo em "dataConvertida"
 			jr $ra		# Jump para onde foi chamada
