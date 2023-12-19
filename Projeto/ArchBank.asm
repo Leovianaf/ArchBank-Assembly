@@ -106,6 +106,12 @@
 	contaAtual1: .space 9		# Para comparar no vetor de clientes, se o clienteAtual1 eh igual ao contaComDigito1
 	contaAtual2: .space 9		# Para comparar no vetor de clientes, se o clienteAtual2 eh igual ao contaComDigito2
 	
+	tipoTransferencia_D: .asciiz "D" # Tipo Debito
+	tipoTransferencia_C: .asciiz "C" # Tipo Credito
+	
+	# Registro do extrato
+	registroDoExtrato: .space 38 # Pra imprimir um registro de um extrato
+	
 	# Para funcoes que recebem apenas uma conta como argumento
    	contaComDigito: .space 9	# Para receber a conta de um comando
    	contaAtual: .space 9		# Para comparar no vetor de clientes, se o clienteAtual eh igual a contaComDigito
@@ -392,7 +398,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
    
-    		 # j contaFormat # FUNCAO AINDA NAO CRIADA
+    		j contaFormat
     		 
     	decodificaDebitoExtrato:
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -401,7 +407,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j debitoExtrato # FUNCAO AINDA NAO CRIADA 
+    		j debitoExtrato
     		 
     	decodificaCreditoExtrato: 
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -1176,6 +1182,8 @@
 	
 	# Funcao para formatar o extrato de uma conta
 	contaFormat:
+		move $t4, $s1  	# Endereco para encontrar o cliente que vai ter o limite alterado
+    		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
 		buscar_contaCliente(contaComDigito, contaAtual, formatar)
 		formatar:
 			la $t0, extratos0 # Carrega o endereço base do bloco de extratos
@@ -1186,10 +1194,79 @@
 			# loop pra zerar string
 			loop_zerar:
         			beq $t3, $t2, fimFuncao # Verifica se chegou ao final do extrato, se sim termina a execucao
-        			sb $t0, 0($a0)   # Insere o caractere nulo na posição atual da string
+        			sb $t0, 0($a0)   # Insere o caractere nulo na posicao atual da string
         			addi $a0, $a0, 1  # Avança para o próximo caractere na string
         			addi $t3, $t3, 1 # Incrementa o contador
         			j loop_zerar
+        			
+        # Funcao pra imprimir a lista de operacoes com debito no extrato
+        debitoExtrato:
+        	move $t4, $s1 # Endereco para encontrar o cliente que vai ter o limite alterado
+    		li $t6, 0 # $t6 = 0, contador para saber se ja passou por todos os clientes
+    		la $t0, extratos0 # Carrega o endereco base do bloco de extratos
+    		# Pra comparar no contador 
+    		li $t7, 50
+    		li $t8, 0
+		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistro)
+		
+		procuraRegistro: 
+		mul $t5, $t6, 1900 # Multiplica o contador por 1900 pra achar o bloco de extratos correspondente ao cliente
+		# move $t5, $t4 # Move o endereco base do bloco pra $t5
+			loop_debitoExtrato:
+				beq $t8, $t7, fimFuncao # Se o contador chegar a 50 a funcao encerra
+				# Pra comparar o caractere tipoTransferencia de cada registro do extrato
+				la $a0, 22($t5) # Carrega o byte tipoTransferencia no registro
+				la $a1, tipoTransferencia_D
+				li $a3, 1
+				jal strncmp
+				beq $v0, $zero, printRegistro # Se o byte for 'D' printa o registro do extrato
+				
+					printRegistro: # Parte pra printar o registro
+						la $a0, registroDoExtrato # Pra copiar o registro pra $a0
+						move $a1, $t5 # Endereco do registro
+						li $a2, 38 # Numero de bytes a serem copiados
+						print_str(registroDoExtrato)
+						print_bl()
+					
+				addi $t8, 1 # Incrementa o contador
+				addi $t5, $t5, 38 # Pro proximo registro do extrato
+		
+			j loop_debitoExtrato
+			
+	  # Funcao pra imprimir a lista de operacoes com credito no extrato
+	 creditoExtrato:
+        	move $t4, $s1 # Endereco para encontrar o cliente que vai ter o limite alterado
+    		li $t6, 0 # $t6 = 0, contador para saber se ja passou por todos os clientes
+    		la $t0, extratos0 # Carrega o endereco base do bloco de extratos
+    		# Pra comparar no contador 
+    		li $t7, 50
+    		li $t8, 0
+		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistro)
+		
+		procuraRegistro: 
+		mul $t5, $t6, 1900 # Multiplica o contador por 1900 pra achar o bloco de extratos correspondente ao cliente
+		# move $t5, $t4 # Move o endereco base do bloco pra $t5
+			loop_creditoExtrato:
+				beq $t8, $t7, fimFuncao # Se o contador chegar a 50 a funcao encerra
+				# Pra comparar o caractere tipoTransferencia de cada registro do extrato
+				la $a0, 22($t5) # Carrega o byte tipoTransferencia no registro
+				la $a1, tipoTransferencia_C
+				li $a3, 1
+				jal strncmp
+				beq $v0, $zero, printRegistro # Se o byte for 'C' printa o registro do extrato
+				
+					printRegistro: # Parte pra printar o registro
+						la $a0, registroDoExtrato # Pra copiar o registro pra $a0
+						move $a1, $t5 # Endereco do registro
+						li $a2, 38 # Numero de bytes a serem copiados
+						print_str(registroDoExtrato)
+						print_bl()
+					
+				addi $t8, 1 # Incrementa o contador
+				addi $t5, $t5, 38 # Pro proximo registro do extrato
+		
+			j loop_creditoExtrato
+				
 	
 	# Exceptions / Erros possiveis
 	limiteAtingido:
