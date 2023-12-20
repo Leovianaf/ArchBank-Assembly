@@ -154,6 +154,9 @@
    	
    	dataConvertida: .space 2
    	
+   	# Cadastrar extrato
+   	extrato: .space 3
+   	
    	# Pra armazenar apenas os comandos inseridos na input_string  	
  	stringComando: .space 20 
    	
@@ -267,11 +270,12 @@
    	beq $v0, $zero, %decodificador	# Se $v0 é zero, pula para a função específica
 .end_macro
 
-.macro chama_memcpy_labels(%numBytes, %somaEndereco, %source, %destination)
+.macro chama_memcpy_labels(%numBytes, %somaEnderecoS, %source, %somaEnderecoD, %destination)
 	li $a2, %numBytes	# Num de bytes a serem copiados
     	la $a1, %source 	# Source de memcpy
-    	addi $a1, $a1, %somaEndereco # Endereco do comeco da string
+    	addi $a1, $a1, %somaEnderecoS # Endereco do comeco da string source
     	la $a0, %destination	# Destination de memcpy
+    	addi $a0, $a0, %somaEnderecoD # Endereco do comeco da string destination
     	jal memcpy 		# Chama memcpy
 .end_macro
 
@@ -647,24 +651,20 @@
 		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t6 = contador para buscar o cliente ; $s2 = 50 (num Max de clientes)
 		
 		move $t4, $s1  	# Endereco para encontrar o cliente1
-		move $t5, $s1  	# Endereco para encontrar o cliente2
-		
+		move $t5, $s1  	# Endereco para encontrar o cliente2		
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
     		buscar_duas_contaCliente(contaComDigito1, contaAtual1, contaComDigito2, contaAtual2, conversao_Saldo_Fatura_Limite)  # Procura os 2 clientes pelo numero da conta, fornecendo os labels necessarios 		      	
-    		
-    		addi $sp, $sp, -16
-    		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
-    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
-    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
-    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
-    		la $t2, tipoTransferencia_D
-    		sw $t2, 12($sp)
-    		
-    		
+    		   		
     		conversao_Saldo_Fatura_Limite:
     		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
     		# Tira do saldo do cliente 2 e paga a fatura do cliente 1
+    				addi $sp, $sp, -12 # Reserva 3 espacos na pilha
+    				sw $t5, 0($sp) 	# salva na pilha o endereco do cliente que fez a transferencia
+    				sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
+    				la $t8, tipoTransferencia_D	# Carrega em $t8 o endereco do caractere para tipo de transferencia = debito
+    				sw $t8, 8($sp) 	# salva na pilha o endereco do caractere para tipo de transferencia = debito
+    				
 				la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
     				addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
     				jal converte_string_int	# Jump para funcao que converte a string em um inteiro
@@ -746,11 +746,7 @@
 				    			
     		
 
-	transferirCredito:
-	
-		
-    		
-    			
+	transferirCredito:   			
  		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
 		# Variaveis locais: $s1 = endereco do bloco de clientes; $t4 = endereco do cliente atual ; $t6 = contador para buscar o cliente ; $s2 = 50 (num Max de clientes)
 		
@@ -759,21 +755,16 @@
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
     		
     		buscar_duas_contaCliente(contaComDigito1, contaAtual1, contaComDigito2, contaAtual2, conversao_Limite1_Fatura1_Fatura2_Limite2)  # Procura os 2 clientes pelo numero da conta, fornecendo os labels necessarios
-    		
-    		addi $sp, $sp, -16
-		sw $t5, 0($sp) 	# salva na pilha o endereço base do cliente que está trasnferindo
-    		sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
-    		la $t0, valor	# Carrega em $a0 o endereco do valor a ser sacado, tirado do input
-    		sw $t0, 8($sp) # carrega na minha pilha o valor transferido no débito
-    		la $t2, tipoTransferencia_C
-    		sw $t2, 12($sp)
-    		
-    		print_str(contaAtual2)
-    		
-    		
+
     		conversao_Limite1_Fatura1_Fatura2_Limite2:
     		# Neste momento, na memoria em $t4 esta o endereco do meu cliente1 e $t5 esta o endereco do meu cliente2
-    		# Tira do limite e acrescenta na fatura do cliente 2 e paga a fatura do cliente 1  							
+    		# Tira do limite e acrescenta na fatura do cliente 2 e paga a fatura do cliente 1   				    		
+    				addi $sp, $sp, -12 # Reserva 3 espacos na pilha
+    				sw $t5, 0($sp) 	# salva na pilha o endereco do cliente que fez a transferencia
+    				sw $t6, 4($sp) 	# salva na pilha o contador do numero do meu cliente atual
+    				la $t8, tipoTransferencia_C	# Carrega em $t8 o endereco do caractere para tipo de transferencia = credito
+    				sw $t8, 8($sp) 	# salva na pilha o endereco do caractere para tipo de transferencia = credito
+    								
 				la $a0, valor		# Carrega em $a0 o endereco do valor a ser sacado, tirado do input	
     				addi $a0, $a0, 5	# Soma em $a0 a posicao do ultimo byte do valor a ser sacado	
     				jal converte_string_int	# Jump para funcao que converte a string em um inteiro
@@ -790,7 +781,7 @@
 				bgt $s7, $s6, limite_insuficiente # Verifica se o valor eh maior que o limite, se for, vai para erro
 				sub $t1, $s6, $s7 	# Subtrai o valor do limite do cliente 2 e armazena em $t1
 			
-				move $a0, $t1		# Carrega em $a0 o numero, para converter para string
+				move $a0, $t1		# Carrega em $a0 o endereco o numero, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo saldo convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -807,7 +798,7 @@
 				
 				add $t1, $s6, $s7 	# Adiciona o valor na fatura do cliente 2 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
+				move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -824,7 +815,7 @@
 				
 				add $t1, $s6, $s7 	# Adiciona o valor ao limite do cliente 2 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o numero do novo limite, para converter para string
+				move $a0, $t1		# Carrega em $a0 o endereco o numero do novo limite, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar o novo limite convertido para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -841,7 +832,7 @@
 				
 				sub $t1, $s6, $s7 	# Subtrai o valor da fatura do cliente 1 e armazena em $t1
 				
-				move $a0, $t1		# Carrega em $a0 o numero da nova fatura, para converter para string
+				move $a0, $t1		# Carrega em $a0 o endereco o numero da nova fatura, para converter para string
 				la $a1, valorConvertido # Carrega em $a1 o endereco do espaco para guardar a nova fatura convertida para string
 				jal converte_int_string	# Jump para funcao que converte um inteiro em uma string
 			
@@ -849,7 +840,7 @@
     				la $a1, valorConvertido	# Carrega em $a1 o valor da nova fatura que foi convertido pra string, salvo na memoria
     				la $a2, 6	 	# Carrega em $a2 a quantidade de bytes a serem copiadas de "valorConvertido"
     				jal memcpy		# Chama a funcao memcpy   				
-    				
+
     				jal atualizar_hora	# Chama a funcao para definir a hora atual
     				
     				# Mensagem de sucesso  
@@ -871,51 +862,72 @@
     				j cadastrar_extrato
     		
     	cadastrar_extrato:
-    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
+    	# Cada extrato tem 38 bytes e eh estruturado da seguinte maneira: 0-7 bytes = numConta Transferiu / 8-15 bytes = numConta Recebeu / 16-21 bytes = valor / 22 byte = tipo Transferencia / 23-30 bytes = data / 31 byte = hifen / 32-37 bytes = hora
+    		lw $t5, 0($sp) # O endereco do cliente que esta transferindo
     		
-    		la $a0, 38($t5)       # Carrega em $a0 o endereco do ultimo byte do contador de extratos          
-		jal converte_stringData_int    # Jump para funcao que converte a string em um inteiro
-		move $t6, $v0    # Carrega em $s6 o valor do contador convertido
+    		la $a0, 37($t5)       	# Carrega em $a0 o endereco do primeiro byte do contador de extratos          
+		jal converte_stringData_int # Jump para funcao que converte a string em um inteiro
+		move $s6, $v0    	# Carrega em $s6 o valor do contador de extratos convertido
     		
-    		lw $t8, 12($sp) # Carrega o caracter do tipo
-    		lw $t0, 8($sp) # valor que foi transferido
-    		lw $t1, 4($sp) # num do cliente atual (contador)
-    		lw $t5, 0($sp) # O endereco base do cliente que esta transferindo
-    		addi $sp, $sp, 16
+    		lw $a3, 8($sp) # endereco para o caractere do tipo da transferencia
+    		lw $t1, 4($sp) # num do cliente atual (contador)   		 		
     		
-    		la $t3, extratos0 # endereco base do bloco de extrato
-    		mul $t4, $t1, 1900 # multiplica o numero do cliente x 1900 para obter o valor a ser somado para obter a base 
-    		add $t3, $t3, $t4 # soma ao endereco base do extrato, para obter a posicao incial de onde comeca o extrato do meu cliente x
-    	
+    		la $t4, extratos0  # endereco base do bloco de extrato   	   		
+    		mul $t3, $t1, 1900 # multiplica o numero do cliente x 1900 para obter o valor a ser somado para obter a base 
+    		add $t4, $t4, $t3  # soma ao endereco base do extrato, para obter a posicao incial de onde comeca o extrato do meu cliente x		
 		
 		#bge $t6, $s2, #FALTA FAZER VERIFICA SE E 50
-		addi $t7, $t6, 38
-		add $t3, $t3, $t7 
+		addi $t7, $s6, 38
+        	add $t4, $t4, $t7
 		
 		# Parametros -> $a0 - destination; $a1 - source; $a2 - num
+		la $a0, 0($t4)		# Carrega em $a0 a posicao inicial da conta de quem fez a transferencia
+		la $a1, contaAtual2	# Carrega em $a1 o endereco na memoria para o num da contaAtual2
+		li $a2, 8		# Num de bytes a serem copiados de "contaAtual2"
+		jal memcpy		# Chama a funcao memcpy
 		
-		la $a0, 0($t3) # Conta que vai enviar
-		la $a1, 11($t5) 
-		li $a2, 8
-		jal memcpy
+		la $a0, 8($t4) 		# Carrega em $a0 a posicao inicial da conta de quem recebeu a transferencia
+		la $a1, contaAtual1	# Carrega em $a1 o endereco na memoria para o num da contaAtual1
+		li $a2, 8		# Num de bytes a serem copiados de "contaAtual1"
+		jal memcpy		# Chama a funcao memcpy
 		
-		la $a0, 8($t3) # Conta que vai receber
-		la $a1, contaAtual1
-		li $a2, 8
-		jal memcpy
+		la $a0, 16($t4) # Carrega em $a0 a posicao inicial do valor da transferencia
+		la $a1, valor	# Carrega em $a1 o endereco na memoria para o num da contaAtual2
+		li $a2, 6	# Num de bytes a serem copiados de "valor"
+		jal memcpy	# Chama a funcao memcpy
 		
-		la $a0, 16($t3) 
-		la $a1, 0($s7)
-		li $a2, 6
-		jal memcpy
+		lb $a0, 0($a3)	# Carrega em $a0 o caractere do tipo de transferencia
+		sb $a0, 22($t4)	# Armazena no extrato o tipo de transferencia
 		
-		lb $a0, 0($t8) 
-		sb $a0, 22($t3)
+		la $a0, 23($t4) # Carrega em $a0 a posicao inicial da data da transferencia
+		la $a1, data	# Carrega em $a1 o endereco na memoria da data
+		li $a2, 8	# Num de bytes a serem copiados de "data"
+		jal memcpy	# Chama a funcao memcpy
 		
+		li $a0, '-'         # Carrega em $ta0 o caractere '-'
+   		sb $a0, 31($t4)     # Armazena o '-' para separar data e hora
 		
-		addi $t6, $t6, 1
-		j fimFuncao
-    		
+		la $a0, 32($t4) # Carrega em $a0 a posicao inicial da hora da transferencia
+		la $a1, horario	# Carrega em $a1 o endereco na memoria do horario
+		li $a2, 6	# Num de bytes a serem copiados de "hora"
+		jal memcpy	# Chama a funcao memcpy
+				
+		addi $s6, $s6, 1	# Incrementa o contador de extratos do cliente que transferiu			
+		
+		move $a0, $s6			# Carrega em $a0 o numero do contador de extratos, para converter para string
+		la $a1, extrato 		# Carrega em $a1 o endereco do espaco para guardar a data convertida convertida para string
+		jal converte_int_stringData 	# Jump para funcao que converte um inteiro em uma string de data
+		
+		lw $t5, 0($sp) # O endereco do cliente que esta transferindo	
+		
+    		la $a0, 37($t5)	# Carrega em $a0 a posicao inicial do contador de extratos do cliente
+    		la $a1, extrato	# Carrega em $a1 o valor do novo segundo que foi convertido pra string, salvo na memoria
+    		la $a2, 2	# Carrega em $a2 a quantidade de bytes a serem copiadas de "dataConvertida"
+    		jal memcpy	# Chama a funcao memcpy		
+		
+		addi $sp, $sp, 12 # Devolve o espaco reservado pra pilha  
+		
+		j fimFuncao    		
     		
     	alterarLimite:
 		# Cada cliente tem 64 bytes e eh estruturado da seguinte maneira: 0-10 bytes = CPF / 11-18 bytes = numConta / 19-24 bytes = saldo / 25-30 bytes = limite / 31-36 bytes = fatura / 37-63 bytes = nome
@@ -1246,8 +1258,8 @@
 	contaFormat:
 		move $t4, $s1  	# Endereco para encontrar o cliente que vai ter o limite alterado
     		li $t6, 0	# $t6 = 0, contador para saber se ja passou por todos os clientes
-		buscar_contaCliente(contaComDigito, contaAtual, formatar)
-		formatar:
+		buscar_contaCliente(contaComDigito, contaAtual, formatarConta)
+		formatarConta:
 			la $t0, extratos0 # Carrega o endereço base do bloco de extratos
 			mul $a0, $t6, 1900 # Multiplica o contador por 1900 pra achar o bloco de extratos correspondente ao cliente
 			li $t2, 1900 # Numero total de bytes de um extrato de um cliente
@@ -1269,9 +1281,9 @@
     		# Pra comparar no contador 
     		li $t7, 50
     		li $t8, 0
-		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistro)
+		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistroD)
 		
-		procuraRegistro: 
+		procuraRegistroD: 
 		mul $t5, $t6, 1900 # Multiplica o contador por 1900 pra achar o bloco de extratos correspondente ao cliente
 		# move $t5, $t4 # Move o endereco base do bloco pra $t5
 			loop_debitoExtrato:
@@ -1281,23 +1293,23 @@
 				la $a1, tipoTransferencia_D
 				li $a3, 1
 				jal strncmp
-				beq $v0, $zero, printRegistro # Se o byte for 'D' printa o registro do extrato
-				bne $v0, $zero, continuaLoop # Se nao for so continua o loop
+				beq $v0, $zero, printRegistroD # Se o byte for 'D' printa o registro do extrato
+				bne $v0, $zero, continuaLoopD # Se nao for so continua o loop
 				
-					printRegistro: # Parte pra printar o registro
+					printRegistroD: # Parte pra printar o registro
 						la $a0, registroDoExtrato # Pra copiar o registro pra $a0
 						move $a1, $t5 # Endereco do registro
 						li $a2, 38 # Numero de bytes a serem copiados
 						jal memcpy
 						print_str(registroDoExtrato)
 						print_bl()
-						addi $t8, 1 # Incrementa o contador
+						addi $t8, $t8, 1 # Incrementa o contador
 						addi $t5, $t5, 38 # Pro proximo registro do extrato
 						
 						j loop_debitoExtrato
 					
-					continuaLoop: # Continuar o loop pro proximo registro
-						addi $t8, 1 # Incrementa o contador
+					continuaLoopD: # Continuar o loop pro proximo registro
+						addi $t8, $t8, 1 # Incrementa o contador
 						addi $t5, $t5, 38 # Pro proximo registro do extrato
 						
 						j loop_debitoExtrato			
@@ -1311,9 +1323,9 @@
     		# Pra comparar no contador 
     		li $t7, 50
     		li $t8, 0
-		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistro)
+		buscar_contaCliente(contaComDigito, contaAtual, procuraRegistroC)
 		
-		procuraRegistro: 
+		procuraRegistroC: 
 		mul $t5, $t6, 1900 # Multiplica o contador por 1900 pra achar o bloco de extratos correspondente ao cliente
 			loop_creditoExtrato:
 				beq $t8, $t7, fimFuncao # Se o contador chegar a 50 a funcao encerra
@@ -1322,55 +1334,51 @@
 				la $a1, tipoTransferencia_C
 				li $a3, 1
 				jal strncmp
-				beq $v0, $zero, printRegistro # Se o byte for 'C' printa o registro do extrato
-				bne $v0, $zero, continuaLoop # Se nao for so continua o loop
+				beq $v0, $zero, printRegistroC # Se o byte for 'C' printa o registro do extrato
+				bne $v0, $zero, continuaLoopC # Se nao for so continua o loop
 				
-					printRegistro: # Parte pra printar o registro
+					printRegistroC: # Parte pra printar o registro
 						la $a0, registroDoExtrato # Pra copiar o registro pra $a0
 						move $a1, $t5 # Endereco do registro
 						li $a2, 38 # Numero de bytes a serem copiados
 						jal memcpy
 						print_str(registroDoExtrato)
 						print_bl()
-						addi $t8, 1 # Incrementa o contador
+						addi $t8, $t8, 1 # Incrementa o contador
 						addi $t5, $t5, 38 # Pro proximo registro do extrato
 						
 						j loop_creditoExtrato
 					
-					continuaLoop: # Continuar o loop pro proximo registro
-						addi $t8, 1 # Incrementa o contador
+					continuaLoopC: # Continuar o loop pro proximo registro
+						addi $t8, $t8, 1 # Incrementa o contador
 						addi $t5, $t5, 38 # Pro proximo registro do extrato
 						
 						j loop_creditoExtrato			
 	
 	dataHora:
-		chama_memcpy_labels(2, 0, data, dia)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+		chama_memcpy_labels(2, 0, data, 0, dia)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
     	
-    		chama_memcpy_labels(2, 2, data, mes)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+    		chama_memcpy_labels(2, 2, data, 0, mes)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
     	
-    		chama_memcpy_labels(4, 4, data, ano)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+    		chama_memcpy_labels(4, 4, data, 0, ano)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
     		
-    		chama_memcpy_labels(2, 0, horario, hora) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+    		chama_memcpy_labels(2, 0, horario, 0, hora) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
     	
-    		chama_memcpy_labels(2, 2, horario, minuto) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+    		chama_memcpy_labels(2, 2, horario, 0, minuto) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
 
-    		chama_memcpy_labels(2, 4, horario, segundo) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco, source e destination
+    		chama_memcpy_labels(2, 4, horario, 0, segundo) # Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
+		
 		
 		verificando_valoresData:		
-			# Converte o dia para int e verifica se eh maior que 31
-			converte_verifica_data(dia, 31)
+			converte_verifica_data(dia, 31)	# Converte o dia para int e verifica se eh maior que 31			
 			
-			# Converte o mes para int e verifica se eh maior que 12
-			converte_verifica_data(mes, 12)
+			converte_verifica_data(mes, 12) # Converte o mes para int e verifica se eh maior que 12
+						
+			converte_verifica_data(hora, 24) # Converte a hora para int e verifica se eh maior que 24			
 			
-			# Converte a hora para int e verifica se eh maior que 24
-			converte_verifica_data(hora, 24)
+			converte_verifica_data(minuto, 59) # Converte o minuto para int e verifica se eh maior que 59
 			
-			# Converte o minuto para int e verifica se eh maior que 59
-			converte_verifica_data(minuto, 59)
-			
-			# Converte o segundo para int e verifica se eh maior que 59
-			converte_verifica_data(segundo, 59)
+			converte_verifica_data(segundo, 59) # Converte o segundo para int e verifica se eh maior que 59
 				
 		# Como a data esta valida, darrega os ms da data atual do sistema
 		li $v0, 30	# Codigo do syscall para obter a data e hora atual (em milissegundos)
@@ -1380,19 +1388,19 @@
 		# move $s5, $a1	# Carrega em $s5 a parte mais significativa do tempo
 		
 		# Exibe a data registrada
-		print_str(DATA_CONFIGURADA_MSG)  # $a0 = string para fatura, definida no .data
-		print_str(dia)  # $a0 = string para fatura, definida no .data
-		print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
-		print_str(mes)  # $a0 = string para fatura, definida no .data
-		print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
-		print_str(ano) # $a0 = valor da nova fatura, apos o pagamento
-		print_str(HIFEN) # $a0 = valor da nova fatura, apos o pagamento
-		print_str(hora)  # $a0 = string para fatura, definida no .data
-		print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
-		print_str(minuto) # $a0 = valor da nova fatura, apos o pagamento
-		print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
-		print_str(segundo) # $a0 = valor da nova fatura, apos o pagamento
-		print_bl()
+		print_str(DATA_CONFIGURADA_MSG)  # $a0 = string para data configurada, definida no .data
+		print_str(dia)		# $a0 = string do dia passado no input
+		print_str(BARRA) 	# $a0 = "/"
+		print_str(mes)  	# $a0 = string do mes passado no input
+		print_str(BARRA		# a0 = "/"
+		print_str(ano) 		# $a0 = string do ano passado no input
+		print_str(HIFEN) 	# $a0 = "-"
+		print_str(hora)  	# $a0 = string da hora passada no input
+		print_str(DOIS_PONTOS)  # $a0 = ":"
+		print_str(minuto) 	# $a0 = string do minuto passado no input
+		print_str(DOIS_PONTOS)  # $a0 = ":"
+		print_str(segundo) 	# $a0 = string do segundo passado no input
+		print_bl()		# Imprime uma quebra de linha
 				
 		j fimFuncao
 	
@@ -1524,17 +1532,25 @@
     		fim_conversao:   		
     		  	# Exibe a data atual da transferencia
 			print_str(DATA_ATUAL_MSG)  # $a0 = string para fatura, definida no .data
-			print_str(dia)  # $a0 = string para fatura, definida no .data
-			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
-			print_str(mes)  # $a0 = string para fatura, definida no .data
-			print_str(BARRA) # $a0 = valor da nova fatura, apos o pagamento
-			print_str(ano) # $a0 = valor da nova fatura, apos o pagamento
-			print_str(HIFEN) # $a0 = valor da nova fatura, apos o pagamento
-			print_str(hora)  # $a0 = string para fatura, definida no .data
-			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
-			print_str(minuto) # $a0 = valor da nova fatura, apos o pagamento
-			print_str(DOIS_PONTOS)  # $a0 = string para fatura, definida no .data
-			print_str(segundo) # $a0 = valor da nova fatura, apos o pagamento  	
+			print_str(dia)		# $a0 = string do dia atualiazado
+			print_str(BARRA) 	# $a0 = "/"
+			print_str(mes)  	# $a0 = string do mes atualiazado
+			print_str(BARRA		# a0 = "/"
+			print_str(ano) 		# $a0 = string do ano atualiazado
+			print_str(HIFEN) 	# $a0 = "-"
+			print_str(hora)  	# $a0 = string da hora atualiazada
+			print_str(DOIS_PONTOS)  # $a0 = ":"
+			print_str(minuto) 	# $a0 = string do minuto atualiazado
+			print_str(DOIS_PONTOS)  # $a0 = ":"
+			print_str(segundo) 	# $a0 = string do segundo atualiazado			
+			
+			# Atualiza as labels "data" e "horario" com os novos valores
+			chama_memcpy_labels(2, 0, dia, 0, data)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
+			chama_memcpy_labels(2, 0, mes, 2, data)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination	
+			chama_memcpy_labels(4, 0, ano, 4, data)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
+			chama_memcpy_labels(2, 0, hora, 0, horario)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
+			chama_memcpy_labels(2, 0, minuto, 2, horario)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination
+			chama_memcpy_labels(2, 0, segundo, 4, horario)	# Chama memcpy com o num de bytes a serem copiados, num para somar ao endereco de source, source, num para somar ao endereco de dest e destination			   						
 					   			
     			carregar_ra_pilha()
 			jr $ra		
