@@ -51,7 +51,7 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
-    	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 32 bytes (1600 = 32 *50)
+    	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 38 bytes (1900 = 38 *50)
     	extratos0: .space 1900 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
     	extratos1: .space 1900
     	extratos2: .space 1900
@@ -171,6 +171,11 @@
 	limite: .asciiz "150000"	# Valor padrao para um limite ao cadastrar o cliente
 	fatura: .asciiz "000000"	# Valor padrao para uma fatura ao cadastrar o cliente
 	nome: .space 27		# Espaco na memoria para armazenar o nome lido no input
+	
+	# Pro conteudo do arquivo
+	# Em localArquivo eh necessario mudar o caminho de onde o arquivo sera salvo/lido
+	localArquivo: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/códigos/teste/texto2.txt"
+	conteudoArquivo: .space 4000
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
 	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
@@ -1612,13 +1617,70 @@
     		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
                      
         salvar:
-        	j exit	# Jump para exit, para encerrar o programa
+        	li $t4, 0 # Contador do loop cliente
+        	# $s0 = numClientes
+        	move $t5, $s1 # $s1 = clientes0
+        	la $a3, conteudoArquivo # Endereco de conteudoArquivo
+        	la $t6, extratos0 # Endereco base dos extratos
+		# GUARDAR VALORES DAQUI NA PILHA
+        	copiaArquivoLoop:
+        		#RECUPERAR VALORES DA PILHA mas nao todos, depende. Os que incrementam (tipo a0, t5 e t6 n podem ser resetados
+			beq $t4, $s0, gravarArquivo # Se terminou de copiar, grave no arquivo
+			move $a0, $a3 # Endereco de conteudoArquivo (destination) em $a0
+			move $a1, $t5 # Move endereco de clientes0 para $a1
+			li $a2, 64 # Numero de bytes do cliente a serem copiados
+			jal memcpy
+			move $t9, $t6 # Move pra $t9 o endereco do bloco de extrato atual (pra incrementar no loop copiaExtratos)
+			la $a0, 38($t5) # Endereco do ultimo byte do numero de registros no extrato de um cliente
+			jal converte_stringData_int
+			move $t8, $v0 # Move para $t8 o numero de registros no extrato
+			li $t7, 0 # Contador do loop extrato
+			
+			copiaExtratos:
+				beq $t7, $t8, proxCliente # Se terminou de copiar todos os registros va pro prox cliente
+				move $a0, $a3 # Endereco do buffer a receber a copia (destination)
+				move $a1, $t9 # Move para $a1 o endereco do registro a ser copiado do bloco de extratos (source)
+				li $a2, 38 # Num de bytes do bloco de extratos a serem copiados
+				addi $t9, $t9, 38 # Posicao do proximo registro no extrato a ser copiado
+				addi $t7, $t7, 1 # Incrementa o contador
+				# Posicao onde o proximo registro vai ser guardado em conteudoArquivo
+				# Ao sair deste loop, $a3 tambem vai estar atualizado pra posicao pra onde o prox cliente vai ser copiado
+				addi $a3, $a3, 38
+				j copiaExtratos
+			
+			proxCliente: # Para preparar os registradores pra copia do prox cliente
+			addi $t4, $t4, 1 # Incrementa o contador
+			addi $t5, $t5, 64 # Posicao para copia do proximo cliente de clientes0
+			addi $t6, $t6, 1900 # Posicao do proximo bloco de extrato do cliente
+			j copiaArquivoLoop
+			
+		gravaArquivo:
+			# Abrir o arquivo
+			li $v0, 13 # Abrir arquivo
+			la $a0, localArquivo
+			li $a1, 1 # Indica o modo escrita
+			syscall # Descritor estara em $v0
+	
+			move $s0, $v0 # Salvando descritor em $s0
+	
+			# Escrevendo a string no arquivo
+			li $v0, 15 # Escrever no arquivo
+			move $a0, $s0 # Movendo descritor para $a0
+			la $a1, conteudoArquivo # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
+			li $a2, 4000 # Numero de caracteres a serem escritos no arquivo
+			syscall
+	
+			# Fechar o arquivo
+			li $v0, 16 # Para fechar
+			move $a0, $s0 # Descritor do arquivo
+			syscall
+			j fimFuncao # Jump para fimFuncao, para voltar ao main_loop
         	
         recarregar:
-        	j fimFuncao	# Jump para fimDuncao, para voltar ao main_loop
+        	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
         formatar:
-        	j fimFuncao	# Jump para fimDuncao, para voltar ao main_loop
+        	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
