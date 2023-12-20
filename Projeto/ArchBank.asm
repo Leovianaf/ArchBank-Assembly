@@ -176,7 +176,7 @@
 	# Em localArquivo eh necessario mudar o caminho de onde o arquivo sera salvo/lido no SEU PROPRIO computador
 	localArquivoClientes: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Clientes.txt"
 	localArquivoExtratos: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Extratos.txt"
-	conteudoArquivoClientes: .space 200 # Cada cliente tem apenas 64 bytes, para teste com dois clientes eh suficiente
+	conteudoArquivoClientes: .space 128 # Cada cliente tem apenas 64 bytes, para teste com dois clientes eh suficiente
 	conteudoArquivoExtratos: .space 4000 # Cada extrato tem 1900 bytes, para teste com dois extratos eh suficiente
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
@@ -435,7 +435,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
    
-    		 # j contaFormat # FUNCAO AINDA NAO CRIADA
+    		j contaFormat 
     		 
     	decodificaDebitoExtrato:
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -444,7 +444,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j debitoExtrato # FUNCAO AINDA NAO CRIADA 
+    		j debitoExtrato
     		 
     	decodificaCreditoExtrato: 
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -453,7 +453,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
+    		j creditoExtrato 
     	
     	decodificaTransferirDebito:
     		# Pra string da primeira conta
@@ -637,9 +637,15 @@
     		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "limite_inicial"
     		jal memcpy	# Chama a funcao memcpy
     		
+    		li $t9, '0'         # Carrega em $t9 o caractere '0'
+   		sb $t9, 37($t4)     # clientes[numClientes].conta[7] = '0'
+   		
+   		li $t9, '0'         # Carrega em $t9 o caractere '0'
+   		sb $t9, 38($t4)     # clientes[numClientes].conta[7] = '0'
+    		
     		la $a0, 39($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
     		la $a1, nome	# Carrega em $a1 o nome digitado pelo usuario, que estava na memoria
-    		jal strcpy	# Chama a funcao memcpy
+    		jal strcpy3	# Chama a funcao memcpy
 
     		# Mensagem de sucesso  
     		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
@@ -650,6 +656,10 @@
 
     		# Incrementar numClientes
     		addi $s0, $s0, 1	# numClientes = numClientes + 1
+    		
+    		# Zerar nome do cliente
+    		la $a0, nome
+    		jal zerarString
 
     		j fimFuncao	# Jump para fim da funcao, para retornar ao main    		    	
 
@@ -872,7 +882,7 @@
     	# Cada extrato tem 38 bytes e eh estruturado da seguinte maneira: 0-7 bytes = numConta Transferiu / 8-15 bytes = numConta Recebeu / 16-21 bytes = valor / 22 byte = tipo Transferencia / 23-30 bytes = data / 31 byte = hifen / 32-37 bytes = hora
     		lw $t5, 0($sp) # O endereco do cliente que esta transferindo
     		
-    		la $a0, 37($t5)       	# Carrega em $a0 o endereco do primeiro byte do contador de extratos          
+    		la $a0, 38($t5)       	# Carrega em $a0 o endereco do ultimo byte do contador de extratos          
 		jal converte_stringData_int # Jump para funcao que converte a string em um inteiro
 		move $s6, $v0    	# Carrega em $s6 o valor do contador de extratos convertido
     		
@@ -1668,7 +1678,7 @@
 			li $v0, 15 # Escrever no arquivo
 			move $a0, $t0 # Movendo descritor para $a0
 			la $a1, conteudoArquivoClientes # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
-			li $a2, 200 # Numero de caracteres a serem escritos no arquivo
+			li $a2, 128 # Numero de caracteres a serem escritos no arquivo
 			syscall
 			
 			# Fechar o arquivo
