@@ -172,10 +172,12 @@
 	fatura: .asciiz "000000"	# Valor padrao para uma fatura ao cadastrar o cliente
 	nome: .space 27		# Espaco na memoria para armazenar o nome lido no input
 	
-	# Pro conteudo do arquivo
-	# Em localArquivo eh necessario mudar o caminho de onde o arquivo sera salvo/lido
-	localArquivo: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/códigos/teste/texto2.txt"
-	conteudoArquivo: .space 4000
+	# Arquivos
+	# Em localArquivo eh necessario mudar o caminho de onde o arquivo sera salvo/lido no SEU PROPRIO computador
+	localArquivoClientes: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Clientes.txt"
+	localArquivoExtratos: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Extratos.txt"
+	conteudoArquivoClientes: .space 200 # Cada cliente tem apenas 64 bytes, para teste com dois clientes eh suficiente
+	conteudoArquivoExtratos: .space 4000 # Cada extrato tem 1900 bytes, para teste com dois extratos eh suficiente
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
 	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
@@ -1397,7 +1399,7 @@
 		print_str(dia)		# $a0 = string do dia passado no input
 		print_str(BARRA) 	# $a0 = "/"
 		print_str(mes)  	# $a0 = string do mes passado no input
-		print_str(BARRA		# a0 = "/"
+		print_str(BARRA)		# a0 = "/"
 		print_str(ano) 		# $a0 = string do ano passado no input
 		print_str(HIFEN) 	# $a0 = "-"
 		print_str(hora)  	# $a0 = string da hora passada no input
@@ -1540,7 +1542,7 @@
 			print_str(dia)		# $a0 = string do dia atualiazado
 			print_str(BARRA) 	# $a0 = "/"
 			print_str(mes)  	# $a0 = string do mes atualiazado
-			print_str(BARRA		# a0 = "/"
+			print_str(BARRA)		# a0 = "/"
 			print_str(ano) 		# $a0 = string do ano atualiazado
 			print_str(HIFEN) 	# $a0 = "-"
 			print_str(hora)  	# $a0 = string da hora atualiazada
@@ -1617,64 +1619,87 @@
     		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
                      
         salvar:
-        	li $t4, 0 # Contador do loop cliente
+        	li $t4, 0 # Contador do loop clientes
+        	li $t5, 0 # Contador do loop extratos
+        	move $t6, $s1 # $s1 = clientes0
+        	la $t7, conteudoArquivoClientes # Endereco de conteudoArquivoClientes
+        	la $t8, conteudoArquivoExtratos # Endereco de conteudoArquivoExtratos
+        	la $t9, extratos0 # Endereco base dos extratos
         	# $s0 = numClientes
-        	move $t5, $s1 # $s1 = clientes0
-        	la $a3, conteudoArquivo # Endereco de conteudoArquivo
-        	la $t6, extratos0 # Endereco base dos extratos
-		# GUARDAR VALORES DAQUI NA PILHA
-        	copiaArquivoLoop:
-        		#RECUPERAR VALORES DA PILHA mas nao todos, depende. Os que incrementam (tipo a0, t5 e t6 n podem ser resetados
-			beq $t4, $s0, gravarArquivo # Se terminou de copiar, grave no arquivo
-			move $a0, $a3 # Endereco de conteudoArquivo (destination) em $a0
-			move $a1, $t5 # Move endereco de clientes0 para $a1
-			li $a2, 64 # Numero de bytes do cliente a serem copiados
-			jal memcpy
-			move $t9, $t6 # Move pra $t9 o endereco do bloco de extrato atual (pra incrementar no loop copiaExtratos)
-			la $a0, 38($t5) # Endereco do ultimo byte do numero de registros no extrato de um cliente
-			jal converte_stringData_int
-			move $t8, $v0 # Move para $t8 o numero de registros no extrato
-			li $t7, 0 # Contador do loop extrato
-			
-			copiaExtratos:
-				beq $t7, $t8, proxCliente # Se terminou de copiar todos os registros va pro prox cliente
-				move $a0, $a3 # Endereco do buffer a receber a copia (destination)
-				move $a1, $t9 # Move para $a1 o endereco do registro a ser copiado do bloco de extratos (source)
-				li $a2, 38 # Num de bytes do bloco de extratos a serem copiados
-				addi $t9, $t9, 38 # Posicao do proximo registro no extrato a ser copiado
-				addi $t7, $t7, 1 # Incrementa o contador
-				# Posicao onde o proximo registro vai ser guardado em conteudoArquivo
-				# Ao sair deste loop, $a3 tambem vai estar atualizado pra posicao pra onde o prox cliente vai ser copiado
-				addi $a3, $a3, 38
-				j copiaExtratos
-			
-			proxCliente: # Para preparar os registradores pra copia do prox cliente
-			addi $t4, $t4, 1 # Incrementa o contador
-			addi $t5, $t5, 64 # Posicao para copia do proximo cliente de clientes0
-			addi $t6, $t6, 1900 # Posicao do proximo bloco de extrato do cliente
-			j copiaArquivoLoop
-			
-		gravaArquivo:
-			# Abrir o arquivo
+        	
+        	# Loop para copiar clientes
+        	loopClientes:
+        	beq $t4, $s0, loopExtratos # Se copiou todos os clientes va copiar os extratos
+        	move $a0, $t7 # $a0 contem endereco do arquivo de clientes para receber a copia (destination)
+        	move $a1, $t6 # $a1 contem o endereco do cliente a ser copiado (source)
+        	li $a2, 64 # Numero de bytes a serem copiados do cliente para o arquivo
+        	jal memcpy
+        	addi $t4, $t4, 1 # Incrementa o contador de clientes copiados
+        	addi $t6, $t6, 64 # Incrementa pro endereco do proximo cliente a ser copiado
+        	addi $t7, $t7, 64 # Incrementa pro endereco do buffer do arquivo pra receber outra copia 
+        	
+        	j loopClientes
+        	
+        	# Loop para copiar extratos
+        	loopExtratos:
+        	beq $t5, $s0, gravaArquivo # Se copiou todos va gravar no arquivo
+        	move $a0, $t8 # $a0 contem endereco do arquivo de extratos para receber a copia (destination)
+        	move $a1, $t9 # $a1 contem o endereco do extrato a ser copiado (source)
+        	li $a2, 1900 # Numero de bytes a serem copiados do extrato para o arquivo
+        	jal memcpy
+        	addi $t5, $t5, 1 # Incrementa o contador de extratos copiados
+		addi $t9, $t9, 1900 # Incrementa pro endereco do proximo cliente a ser copiado
+        	addi $t8, $t8, 1900 # Incrementa pro endereco do buffer do arquivo pra receber outra copia 
+        	
+        	j loopExtratos
+        	
+        	# Pra gravar os dados no arquivo
+        	gravaArquivo:
+        		gravaClientes:
+        		# Abrir o arquivo
 			li $v0, 13 # Abrir arquivo
-			la $a0, localArquivo
+			la $a0, localArquivoClientes
 			li $a1, 1 # Indica o modo escrita
 			syscall # Descritor estara em $v0
 	
-			move $s0, $v0 # Salvando descritor em $s0
+			move $t0, $v0 # Salvando descritor em $t0
 	
 			# Escrevendo a string no arquivo
 			li $v0, 15 # Escrever no arquivo
-			move $a0, $s0 # Movendo descritor para $a0
-			la $a1, conteudoArquivo # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
-			li $a2, 4000 # Numero de caracteres a serem escritos no arquivo
+			move $a0, $t0 # Movendo descritor para $a0
+			la $a1, conteudoArquivoClientes # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
+			li $a2, 200 # Numero de caracteres a serem escritos no arquivo
 			syscall
-	
+			
 			# Fechar o arquivo
 			li $v0, 16 # Para fechar
-			move $a0, $s0 # Descritor do arquivo
+			move $a0, $t0 # Descritor do arquivo
 			syscall
-			j fimFuncao # Jump para fimFuncao, para voltar ao main_loop
+			j gravaExtratos
+			
+			gravaExtratos:
+			# Abrir o arquivo
+			li $v0, 13 # Abrir arquivo
+			la $a0, localArquivoExtratos
+			li $a1, 1 # Indica o modo escrita
+			syscall # Descritor estara em $v0
+	
+			move $t0, $v0 # Salvando descritor em $t0
+	
+			# Escrevendo a string no arquivo
+			li $v0, 15 # Escrever no arquivo
+			move $a0, $t0 # Movendo descritor para $a0
+			la $a1, conteudoArquivoExtratos # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
+			li $a2, 4000 # Numero de caracteres a serem escritos no arquivo
+			syscall
+			
+			# Fechar o arquivo
+			li $v0, 16 # Para fechar
+			move $a0, $t0 # Descritor do arquivo
+			syscall
+			
+			j fimFuncao #Se terminou as gravacoes da jump para fimFuncao, para voltar ao main_loop
+        	
         	
         recarregar:
         	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
