@@ -57,6 +57,8 @@
     	extratos2: .space 1900
     	
     	nomeBancoBanner: .asciiz "ArchBank-shell>> "
+    	MEMORIA_GRAVADA_MSG: .asciiz "\nMemoria gravada nos arquivos com sucesso\n"
+	MEMORIA_CARREGADA_MSG: .asciiz "\nMemoria carrega dos arquivo com sucesso\n"
     	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Numero da conta: "
    	CLIENTE_INVALIDO_MSG: .asciiz "\nNumero da conta do cliente invalido.\n"
@@ -87,6 +89,7 @@
    	BARRA: .asciiz "/"
    	HIFEN: .asciiz "-"
    	DOIS_PONTOS: .asciiz ":"
+   	ZERO: .asciiz "/0"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -1708,6 +1711,8 @@
 			move $a0, $t0 # Descritor do arquivo
 			syscall
 			
+			print_str(MEMORIA_GRAVADA_MSG)
+			
 			j fimFuncao #Se terminou as gravacoes da jump para fimFuncao, para voltar ao main_loop
         	
         	
@@ -1762,16 +1767,32 @@
 		move $a0, $t5 # Vai fechar o arquivo que tem descritor em $a0, descritor estava salvo em $t5
 		syscall
         	
+        	print_str(MEMORIA_CARREGADA_MSG)
+        	
         	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
         formatar:
-        	la $a0, clientes0 # Carrega endereco de clientes0 em $a0
-        	jal zerarString # Chama funcao de zerarString para apagar todos os clientes
+        	# $s0 = numClientes
+        	li $t4, 0 # Contador do loop cliente
+        	li $t5, 0 # Contador do loop extrato
+        	la $t6, cliente0
+        	la $t7, extratos0 # Carrega endereco de extratos0 em $a0
         	
-        	la $a0, extratos0 # Carrega endereco de extratos0 em $a0
-        	jal zerarString # Chama funcao de zerarString para apagar todos os extratos
+        	loopApagaCliente:
+		beq $t4, 3200, loopApagaExtrato
+        	li $t8, '0' # Caractere nulo em $t8
+        	sb $t8, 0($t6) # Armazena caractere nulo em $t7
+        	addi $t6, $t6, 1 # Incrementa o endereco dos clientes
+        	addi $t4, $t4, 1 # Incrementa o contador
+        	j loopApagaCliente
         	
-        	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
+        	loopApagaExtrato:
+        	beq $t5, 4000, fimFuncao
+        	li $t8, '0' # Caractere nulo em $t8
+        	sb $t8, 0($t7) # Armazena caractere nulo em $t7
+        	addi $t7, $t7, 1 # Incrementa o endereco dos extratos
+        	addi $t5, $t5, 1 # Incrementa o contador
+        	j loopApagaExtrato
         	
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa
