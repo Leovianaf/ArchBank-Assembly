@@ -51,12 +51,14 @@
     	cliente48: .space 64
     	cliente49: .space 64
     	
-    	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 32 bytes (1600 = 32 *50)
+    	# Espaco para armazenar os extratos dos clientes (Cada cliente pode ter ate 50 extratos) cada um com 38 bytes (1900 = 38 *50)
     	extratos0: .space 1900 # Cada extrato eh estruturado assim: 8 bytes para o num da Conta do cliente que realizou a transferencia, 8 bytes para o num da conta do cliente que recebeu a transferencia, 1 byte para o tipo da transferencia, 8 bytes para DDMMAAAA, 1 byte para '-' e 6 bytes para HHMMSS
     	extratos1: .space 1900
     	extratos2: .space 1900
     	
     	nomeBancoBanner: .asciiz "ArchBank-shell>> "
+    	MEMORIA_GRAVADA_MSG: .asciiz "\nMemoria gravada nos arquivos com sucesso\n"
+	MEMORIA_CARREGADA_MSG: .asciiz "\nMemoria carrega dos arquivo com sucesso\n"
     	LIMITE_ATINGIDO_MSG: .asciiz "\nLimite de clientes atingido.\n"
    	CLIENTE_CADASTRADO_MSG: .asciiz "\nCliente cadastrado com sucesso. Numero da conta: "
    	CLIENTE_INVALIDO_MSG: .asciiz "\nNumero da conta do cliente invalido.\n"
@@ -87,6 +89,7 @@
    	BARRA: .asciiz "/"
    	HIFEN: .asciiz "-"
    	DOIS_PONTOS: .asciiz ":"
+   	ZERO: .asciiz "/0"
    	
    	conta_cadastrar: .asciiz "conta_cadastrar"
    	conta_format: .asciiz "conta_format"
@@ -171,6 +174,13 @@
 	limite: .asciiz "150000"	# Valor padrao para um limite ao cadastrar o cliente
 	fatura: .asciiz "000000"	# Valor padrao para uma fatura ao cadastrar o cliente
 	nome: .space 27		# Espaco na memoria para armazenar o nome lido no input
+	
+	# Arquivos
+	# Em localArquivo eh necessario mudar o caminho de onde o arquivo sera salvo/lido no SEU PROPRIO computador
+	localArquivoClientes: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Clientes.txt"
+	localArquivoExtratos: .asciiz "C:/Users/Ana Laura/Documents/UFRPE/Arquitetura e Organização de Computadores/ArchBank-Assembly/Projeto/Extratos.txt"
+	conteudoArquivoClientes: .space 128 # Cada cliente tem apenas 64 bytes, para teste com dois clientes eh suficiente
+	conteudoArquivoExtratos: .space 4000 # Cada extrato tem 1900 bytes, para teste com dois extratos eh suficiente
 
 .macro print_int(%inteiro)	# Macro para imprimir um inteiro, passado como parametro
 	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
@@ -428,7 +438,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
    
-    		 # j contaFormat # FUNCAO AINDA NAO CRIADA
+    		j contaFormat 
     		 
     	decodificaDebitoExtrato:
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -437,7 +447,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j debitoExtrato # FUNCAO AINDA NAO CRIADA 
+    		j debitoExtrato
     		 
     	decodificaCreditoExtrato: 
     		li $a2, 8 		# Num de bytes do num da conta a ser copiado
@@ -446,7 +456,7 @@
     		la $a0, contaComDigito 	# Destination de memcpy
     		jal memcpy 		# Chama memcpy
     		
-    		# j creditoExtrato # FUNCAO AINDA NAO CRIADA 	
+    		j creditoExtrato 
     	
     	decodificaTransferirDebito:
     		# Pra string da primeira conta
@@ -630,9 +640,15 @@
     		la $a2, 6	# Carrega em $a2 a quantidade de bytes a serem copiadas de "limite_inicial"
     		jal memcpy	# Chama a funcao memcpy
     		
+    		li $t9, '0'         # Carrega em $t9 o caractere '0'
+   		sb $t9, 37($t4)     # clientes[numClientes].conta[7] = '0'
+   		
+   		li $t9, '0'         # Carrega em $t9 o caractere '0'
+   		sb $t9, 38($t4)     # clientes[numClientes].conta[7] = '0'
+    		
     		la $a0, 39($t4)	# Carrega em $a0 a posicao inicial do nome do cliente 	(cliente[numClientes].nome[0])
     		la $a1, nome	# Carrega em $a1 o nome digitado pelo usuario, que estava na memoria
-    		jal strcpy	# Chama a funcao memcpy
+    		jal strcpy3	# Chama a funcao memcpy
 
     		# Mensagem de sucesso  
     		print_str(CLIENTE_CADASTRADO_MSG)  # $a0 = string para cliente cadastrado, definida no .data
@@ -643,6 +659,10 @@
 
     		# Incrementar numClientes
     		addi $s0, $s0, 1	# numClientes = numClientes + 1
+    		
+    		# Zerar nome do cliente
+    		la $a0, nome
+    		jal zerarString
 
     		j fimFuncao	# Jump para fim da funcao, para retornar ao main    		    	
 
@@ -865,7 +885,7 @@
     	# Cada extrato tem 38 bytes e eh estruturado da seguinte maneira: 0-7 bytes = numConta Transferiu / 8-15 bytes = numConta Recebeu / 16-21 bytes = valor / 22 byte = tipo Transferencia / 23-30 bytes = data / 31 byte = hifen / 32-37 bytes = hora
     		lw $t5, 0($sp) # O endereco do cliente que esta transferindo
     		
-    		la $a0, 37($t5)       	# Carrega em $a0 o endereco do primeiro byte do contador de extratos          
+    		la $a0, 38($t5)       	# Carrega em $a0 o endereco do ultimo byte do contador de extratos          
 		jal converte_stringData_int # Jump para funcao que converte a string em um inteiro
 		move $s6, $v0    	# Carrega em $s6 o valor do contador de extratos convertido
     		
@@ -1392,7 +1412,7 @@
 		print_str(dia)		# $a0 = string do dia passado no input
 		print_str(BARRA) 	# $a0 = "/"
 		print_str(mes)  	# $a0 = string do mes passado no input
-		print_str(BARRA		# a0 = "/"
+		print_str(BARRA)		# a0 = "/"
 		print_str(ano) 		# $a0 = string do ano passado no input
 		print_str(HIFEN) 	# $a0 = "-"
 		print_str(hora)  	# $a0 = string da hora passada no input
@@ -1535,7 +1555,7 @@
 			print_str(dia)		# $a0 = string do dia atualiazado
 			print_str(BARRA) 	# $a0 = "/"
 			print_str(mes)  	# $a0 = string do mes atualiazado
-			print_str(BARRA		# a0 = "/"
+			print_str(BARRA)		# a0 = "/"
 			print_str(ano) 		# $a0 = string do ano atualiazado
 			print_str(HIFEN) 	# $a0 = "-"
 			print_str(hora)  	# $a0 = string da hora atualiazada
@@ -1612,13 +1632,167 @@
     		jr $ra			# Jump para o para o main_loop, para o usuario digitar outro comando	   		        	
                      
         salvar:
-        	j exit	# Jump para exit, para encerrar o programa
+        	li $t4, 0 # Contador do loop clientes
+        	li $t5, 0 # Contador do loop extratos
+        	move $t6, $s1 # $s1 = clientes0
+        	la $t7, conteudoArquivoClientes # Endereco de conteudoArquivoClientes
+        	la $t8, conteudoArquivoExtratos # Endereco de conteudoArquivoExtratos
+        	la $t9, extratos0 # Endereco base dos extratos
+        	# $s0 = numClientes
+        	
+        	# Loop para copiar clientes
+        	loopClientes:
+        	beq $t4, $s0, loopExtratos # Se copiou todos os clientes va copiar os extratos
+        	move $a0, $t7 # $a0 contem endereco do arquivo de clientes para receber a copia (destination)
+        	move $a1, $t6 # $a1 contem o endereco do cliente a ser copiado (source)
+        	li $a2, 64 # Numero de bytes a serem copiados do cliente para o arquivo
+        	jal memcpy
+        	addi $t4, $t4, 1 # Incrementa o contador de clientes copiados
+        	addi $t6, $t6, 64 # Incrementa pro endereco do proximo cliente a ser copiado
+        	addi $t7, $t7, 64 # Incrementa pro endereco do buffer do arquivo pra receber outra copia 
+        	
+        	j loopClientes
+        	
+        	# Loop para copiar extratos
+        	loopExtratos:
+        	beq $t5, $s0, gravaArquivo # Se copiou todos va gravar no arquivo
+        	move $a0, $t8 # $a0 contem endereco do arquivo de extratos para receber a copia (destination)
+        	move $a1, $t9 # $a1 contem o endereco do extrato a ser copiado (source)
+        	li $a2, 1900 # Numero de bytes a serem copiados do extrato para o arquivo
+        	jal memcpy
+        	addi $t5, $t5, 1 # Incrementa o contador de extratos copiados
+		addi $t9, $t9, 1900 # Incrementa pro endereco do proximo cliente a ser copiado
+        	addi $t8, $t8, 1900 # Incrementa pro endereco do buffer do arquivo pra receber outra copia 
+        	
+        	j loopExtratos
+        	
+        	# Pra gravar os dados no arquivo
+        	gravaArquivo:
+        		gravaClientes:
+        		# Abrir o arquivo
+			li $v0, 13 # Abrir arquivo
+			la $a0, localArquivoClientes
+			li $a1, 1 # Indica o modo escrita
+			syscall # Descritor estara em $v0
+	
+			move $t0, $v0 # Salvando descritor em $t0
+	
+			# Escrevendo a string no arquivo
+			li $v0, 15 # Escrever no arquivo
+			move $a0, $t0 # Movendo descritor para $a0
+			la $a1, conteudoArquivoClientes # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
+			li $a2, 128 # Numero de caracteres a serem escritos no arquivo
+			syscall
+			
+			# Fechar o arquivo
+			li $v0, 16 # Para fechar
+			move $a0, $t0 # Descritor do arquivo
+			syscall
+			j gravaExtratos
+			
+			gravaExtratos:
+			# Abrir o arquivo
+			li $v0, 13 # Abrir arquivo
+			la $a0, localArquivoExtratos
+			li $a1, 1 # Indica o modo escrita
+			syscall # Descritor estara em $v0
+	
+			move $t0, $v0 # Salvando descritor em $t0
+	
+			# Escrevendo a string no arquivo
+			li $v0, 15 # Escrever no arquivo
+			move $a0, $t0 # Movendo descritor para $a0
+			la $a1, conteudoArquivoExtratos # Endereço do buffer que contem o conteudo a ser copiado para o arquivo
+			li $a2, 4000 # Numero de caracteres a serem escritos no arquivo
+			syscall
+			
+			# Fechar o arquivo
+			li $v0, 16 # Para fechar
+			move $a0, $t0 # Descritor do arquivo
+			syscall
+			
+			print_str(MEMORIA_GRAVADA_MSG)
+			
+			j fimFuncao #Se terminou as gravacoes da jump para fimFuncao, para voltar ao main_loop
+        	
         	
         recarregar:
-        	j fimFuncao	# Jump para fimDuncao, para voltar ao main_loop
+        	lerClientes:
+        	# Abrir o arquivo no modo leitura
+		li $v0, 13 # Solicita a abertura
+		la $a0, localArquivoClientes # Endereço do arquivo
+		li $a1, 0 # Flag indicando operação no arquivo: 0 -> Leitura, 1 -> Escrita
+		syscall # Descritor do arquivo vai para $v0
+		
+		move $t5, $v0 # Descritor salvo em $t5
+		
+		move $a0, $v0 # Descritor precisa estar em $a0
+		li $v0, 14 # Ler conteúdo do arquivo referenciado por $a0
+		la $a1, conteudoArquivoClientes # Buffer que armazena o conteúdo
+		li $a2, 128 # Informa o tamanho do buffer
+		syscall # Leitura realizada
+		
+		la $a0, cliente0 # Carrega o endereco de cliente0 em $a0 (destination)
+		la $a1, conteudoArquivoClientes # Carrega o endereco de conteudoArquivoClientes em $a1 (source)
+		li $a2, 128 # Numero de bytes a serem copiados para cliente0
+		jal memcpy
+		
+		# Fechar o arquivo
+		li $v0, 16
+		move $a0, $t5 # Vai fechar o arquivo que tem descritor em $a0, descritor estava salvo em $t5
+		syscall
+		
+		lerExtratos:
+		# Abrir o arquivo no modo leitura
+		li $v0, 13 # Solicita a abertura
+		la $a0, localArquivoExtratos # Endereço do arquivo
+		li $a1, 0 # Flag indicando operação no arquivo: 0 -> Leitura, 1 -> Escrita
+		syscall # Descritor do arquivo vai para $v0
+		
+		move $t5, $v0 # Descritor salvo em $t5
+		
+		move $a0, $v0 # Descritor precisa estar em $a0
+		li $v0, 14 # Ler conteúdo do arquivo referenciado por $a0
+		la $a1, conteudoArquivoExtratos # Buffer que armazena o conteúdo
+		li $a2, 4000 # Informa o tamanho do buffer
+		syscall # Leitura realizada
+		
+		la $a0, extratos0 # Carrega o endereco de extratos0 em $a0 (destination)
+		la $a1, conteudoArquivoExtratos # Carrega o endereco de conteudoArquivoExtratos em $a1 (source)
+		li $a2, 4000 # Numero de bytes a serem copiados para cliente0
+		jal memcpy
+		
+		# Fechar o arquivo
+		li $v0, 16
+		move $a0, $t5 # Vai fechar o arquivo que tem descritor em $a0, descritor estava salvo em $t5
+		syscall
+        	
+        	print_str(MEMORIA_CARREGADA_MSG)
+        	
+        	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
         formatar:
-        	j fimFuncao	# Jump para fimDuncao, para voltar ao main_loop
+        	# $s0 = numClientes
+        	li $t4, 0 # Contador do loop cliente
+        	li $t5, 0 # Contador do loop extrato
+        	la $t6, cliente0
+        	la $t7, extratos0 # Carrega endereco de extratos0 em $a0
+        	
+        	loopApagaCliente:
+		beq $t4, 3200, loopApagaExtrato
+        	li $t8, '0' # Caractere nulo em $t8
+        	sb $t8, 0($t6) # Armazena caractere nulo em $t7
+        	addi $t6, $t6, 1 # Incrementa o endereco dos clientes
+        	addi $t4, $t4, 1 # Incrementa o contador
+        	j loopApagaCliente
+        	
+        	loopApagaExtrato:
+        	beq $t5, 4000, fimFuncao
+        	li $t8, '0' # Caractere nulo em $t8
+        	sb $t8, 0($t7) # Armazena caractere nulo em $t7
+        	addi $t7, $t7, 1 # Incrementa o endereco dos extratos
+        	addi $t5, $t5, 1 # Incrementa o contador
+        	j loopApagaExtrato
         	
 	exit:
        		li $v0, 10        # Codigo do syscall para encerrar o programa

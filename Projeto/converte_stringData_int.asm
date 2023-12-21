@@ -1,4 +1,4 @@
-# Parametros -> $a0 - endereco da string de data a ser convertida (ultimo byte); $v0 - digito verificador
+# Parametros -> $a0 - endereco da string de data a ser convertida (ultimo byte); $v0 - inteiro convertido
 .globl converte_stringData_int
 
 .text
