@@ -1,3 +1,6 @@
+# strncmp: Compara byte a byte da string 1 com a string 2 ate o byte num da string 1, $v0 vai retornar 0 caso sejam iguais
+# Parametros -> $a0 - string1 ; $a1 - string2 ; $a3 = num
+
 .data
     	str1: .asciiz "Ponta"	# String1 que vai passar pela funcao para teste.
     	str2: .asciiz "Porta"	# String2 que vai passar pela funcao para teste.
@@ -47,8 +50,7 @@
         	print_int($t3)		# Imprime o indice da string onde foi encontrada a diferenca entre elas
         	j exit
 
-    	strncmp:
-    		# Argumentos $a0 = str1, $a1 = str2, $a3 = num, retorno em $v0
+    	strncmp:    		
         	lb $t1, 0($a0)   # Carrega o primeiro caractere de str1
         	lb $t2, 0($a1)   # Carrega o primeiro caractere de str2
         	li $t3, 0        # Inicializa um contador para o numero de caracteres comparados

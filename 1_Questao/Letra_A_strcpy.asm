@@ -1,11 +1,14 @@
- .data
+# strcpy: Copia byte a byte da string source ate o final, para a destination retornando-a em $v0
+# Parametros -> $a0 - destination; $a1 - source
+
+.data
     string: .asciiz "Cadeira" 	# String que vai passar pela funcao para teste.
-    destino: .space 20 		# Espaco para armazenar uma string de até 20 bytes
+    source: .space 20 		# Espaco para armazenar uma string de até 20 bytes
     
 .text
 	main: 
       		la $a0, destino  # Carregar o endereco da string de destino em $a0
-     		la $a1, string  # Carregar o endereco da string de origem em $a1
+     		la $a1, source  # Carregar o endereco da string de origem em $a1
       		jal strcpy  	# Chamar a funcao strcpy
 
 		addi $v0, $0, 4		# Codigo do syscall para imprimir uma string
@@ -13,9 +16,7 @@
 
       		j exit
 
- 	strcpy:
- 		# Argumentos $a0 = source, $a1 = destination, retorno em $v0
- 		
+ 	strcpy:		
  		move $t1, $a1	# Temporario para iterar entre os indices da string source sem perder o endereco original
 		move $t2, $a0	# Temporario para iterar entre os indices da string destination sem perder o endereco original
 		

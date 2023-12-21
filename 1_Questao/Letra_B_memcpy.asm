@@ -1,4 +1,6 @@
-# $a0 - destination; $a1 - source; $a2 - num
+# memcpy: Copia byte a byte da string source ate o byte informado no num, para a destination retornando-a em $v0
+# Parametros -> $a0 - destination ; $a1 - source ; $a2 - num
+
 .data 
 	string: .asciiz "Gosto de Arquitetura"
 	resultadoString: .space 20  # Espaço para armazenar uma string de até 20 bytes

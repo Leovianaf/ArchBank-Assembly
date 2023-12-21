@@ -1,3 +1,7 @@
+# Nome do grupo: ArchBank
+# Integrantes: Beatriz Pereira da Silva | Leonardo da Silva Viana Filho | Paloma Raissa Alves dos Santos | Ricardo Jose Zaidan Serra
+# Projeto 1 VA Assembly | Arquitetura e Organizacao de Computadores | Semestre: 2023.1
+
 .data
     	MAX_CLIENTES: .word 50
     	cliente0: .space 64  # Espaco para armazenar informacoes do cliente0 (Cada cliente possui 64 bytes, sendo 11 para cpf, 8 para a conta, 6 para o saldo (em centavos), 6 para o limite (em centavos), 6 para a fatura/divida (em centavos) e 27 para o nome)

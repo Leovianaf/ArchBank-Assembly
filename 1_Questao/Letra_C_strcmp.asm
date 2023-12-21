@@ -1,15 +1,12 @@
+# strcmp: Compara byte a byte da string 1 com a string 2 ate o final da string 1, $v0 vai retornar 0 caso sejam iguais
+# Parametros -> $a0 - string1 ; $a1 - string2
+
 .data
     	str1: .asciiz "Porta"	# String1 que vai passar pela funcao para teste.
     	str2: .asciiz "Porta"	# String2 que vai passar pela funcao para teste.
     	result_igual: .asciiz "As duas strings sao iguais"
     	result_maior: .asciiz "A string1 > string2"
     	result_menor: .asciiz "A string1 < string2"
-
-.macro print_int(%inteiro)
-	addi $v0, $0, 1		# Codigo do syscall para imprimir um inteiro
-    	add $a0, $0, %inteiro	# Coloque o valor a ser impresso em $a0 
-    	syscall
-.end_macro
 
 .macro print_str(%string)
 	addi $v0, $0, 4		# Codigo do syscall para imprimir uma string
@@ -42,7 +39,6 @@
         	j exit
 
     	strcmp:
-    		# Argumentos $a0 = str1, $a1 = str2, retorno em $v0
         	lb $t1, 0($a0)   # Carrega o primeiro caractere de str1
         	lb $t2, 0($a1)   # Carrega o primeiro caractere de str2
 
