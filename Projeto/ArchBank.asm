@@ -1712,9 +1712,65 @@
         	
         	
         recarregar:
+        	lerClientes:
+        	# Abrir o arquivo no modo leitura
+		li $v0, 13 # Solicita a abertura
+		la $a0, localArquivoClientes # Endereço do arquivo
+		li $a1, 0 # Flag indicando operação no arquivo: 0 -> Leitura, 1 -> Escrita
+		syscall # Descritor do arquivo vai para $v0
+		
+		move $t5, $v0 # Descritor salvo em $t5
+		
+		move $a0, $v0 # Descritor precisa estar em $a0
+		li $v0, 14 # Ler conteúdo do arquivo referenciado por $a0
+		la $a1, conteudoArquivoClientes # Buffer que armazena o conteúdo
+		li $a2, 128 # Informa o tamanho do buffer
+		syscall # Leitura realizada
+		
+		la $a0, cliente0 # Carrega o endereco de cliente0 em $a0 (destination)
+		la $a1, conteudoArquivoClientes # Carrega o endereco de conteudoArquivoClientes em $a1 (source)
+		li $a2, 128 # Numero de bytes a serem copiados para cliente0
+		jal memcpy
+		
+		# Fechar o arquivo
+		li $v0, 16
+		move $a0, $t5 # Vai fechar o arquivo que tem descritor em $a0, descritor estava salvo em $t5
+		syscall
+		
+		lerExtratos:
+		# Abrir o arquivo no modo leitura
+		li $v0, 13 # Solicita a abertura
+		la $a0, localArquivoExtratos # Endereço do arquivo
+		li $a1, 0 # Flag indicando operação no arquivo: 0 -> Leitura, 1 -> Escrita
+		syscall # Descritor do arquivo vai para $v0
+		
+		move $t5, $v0 # Descritor salvo em $t5
+		
+		move $a0, $v0 # Descritor precisa estar em $a0
+		li $v0, 14 # Ler conteúdo do arquivo referenciado por $a0
+		la $a1, conteudoArquivoExtratos # Buffer que armazena o conteúdo
+		li $a2, 4000 # Informa o tamanho do buffer
+		syscall # Leitura realizada
+		
+		la $a0, extratos0 # Carrega o endereco de extratos0 em $a0 (destination)
+		la $a1, conteudoArquivoExtratos # Carrega o endereco de conteudoArquivoExtratos em $a1 (source)
+		li $a2, 4000 # Numero de bytes a serem copiados para cliente0
+		jal memcpy
+		
+		# Fechar o arquivo
+		li $v0, 16
+		move $a0, $t5 # Vai fechar o arquivo que tem descritor em $a0, descritor estava salvo em $t5
+		syscall
+        	
         	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
         formatar:
+        	la $a0, clientes0 # Carrega endereco de clientes0 em $a0
+        	jal zerarString # Chama funcao de zerarString para apagar todos os clientes
+        	
+        	la $a0, extratos0 # Carrega endereco de extratos0 em $a0
+        	jal zerarString # Chama funcao de zerarString para apagar todos os extratos
+        	
         	j fimFuncao	# Jump para fimFuncao, para voltar ao main_loop
         	
 	exit:
